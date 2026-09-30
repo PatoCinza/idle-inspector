@@ -1,0 +1,157 @@
+<title>Baiak Loot Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #eef1ec;
+  --surface: #fafbf8;
+  --ink: #1b221e;
+  --muted: #5b6861;
+  --line: #d5dcd5;
+  --accent: #8c5e14;
+  --accent-soft: #f2e6cf;
+  --coin: #b58a1e;
+  --item: #2f6e6a;
+  --good: #2e7d4f;
+  --warn: #a86b00;
+  --bad: #b3412e;
+  --display: 'Alegreya SC', Georgia, serif;
+  --body: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121614; --surface: #1a201d; --ink: #e4e9e5; --muted: #93a099; --line: #2c3530;
+    --accent: #d6a447; --accent-soft: #3a2f1a; --coin: #d9ae3f; --item: #5db3ab;
+    --good: #5cc08a; --warn: #e0a33a; --bad: #e2735f;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121614; --surface: #1a201d; --ink: #e4e9e5; --muted: #93a099; --line: #2c3530;
+  --accent: #d6a447; --accent-soft: #3a2f1a; --coin: #d9ae3f; --item: #5db3ab;
+  --good: #5cc08a; --warn: #e0a33a; --bad: #e2735f;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); padding-inline: 16px; padding-block: 20px 48px; }
+.page { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+header.top h1 { font: 700 28px/1.1 var(--display); letter-spacing: 0.02em; margin: 0; text-wrap: balance; }
+header.top p { margin: 0; color: var(--muted); font-size: 13px; }
+.layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+#controls { display: grid; gap: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 10px; }
+h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: 0.03em; margin: 0; text-wrap: balance; }
+h2 { font-size: 17px; }
+h3 { font-size: 18px; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.hint, .note { color: var(--muted); font-size: 13px; margin: 0; max-width: 70ch; }
+.steps { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+code { font-family: var(--mono); font-size: 12.5px; background: var(--accent-soft); color: var(--ink); padding: 1px 5px; border-radius: 3px; }
+.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.field > span { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+.field > span em { font-style: normal; color: var(--accent); text-transform: none; letter-spacing: 0; }
+.field.inline { grid-template-columns: 1fr 96px; align-items: center; }
+.field.inline > span { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--ink); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+input, select, textarea { font: 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 7px 8px; width: 100%; min-width: 0; }
+input[type="number"] { font-family: var(--mono); text-align: right; }
+textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.check input { width: auto; margin-top: 3px; }
+button { font: 600 13px var(--body); border-radius: 4px; padding: 8px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); }
+button.ghost { background: transparent; color: var(--accent); }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.status { margin: 0; font-size: 13px; color: var(--muted); min-height: 1.2em; }
+.status.ok { color: var(--good); } .status.error { color: var(--bad); } .status.warn { color: var(--warn); }
+.monster-kills, .party { display: grid; gap: 8px; }
+.member { display: grid; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.member:first-child { border-top: 0; padding-top: 0; }
+.member-name { font-weight: 600; background: transparent; border-color: transparent; padding-inline: 0; }
+.member-name:hover { border-color: var(--line); }
+#results { display: grid; gap: 16px; min-width: 0; }
+.summary { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 620px) { .summary { grid-template-columns: minmax(0, 1fr); } }
+.headline, .reco { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 8px; align-content: start; }
+.reco { border-color: var(--accent); background: linear-gradient(var(--accent-soft), var(--accent-soft)) top / 100% 4px no-repeat, var(--surface); }
+.eyebrow { margin: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.big { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.big .num { font: 500 40px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.big .unit { color: var(--muted); }
+.split { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
+.split .coins { background: var(--coin); } .split .items { background: var(--item); }
+.legend { margin: 0; font-size: 13px; color: var(--muted); display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: -8px; }
+.dot.coins { background: var(--coin); } .dot.items { background: var(--item); }
+.assign { margin: 0; font-size: 17px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
+.assign .charm { font: 700 12px var(--display); letter-spacing: 0.06em; color: var(--accent); min-width: 72px; }
+.gain { margin: 0; font-size: 13px; color: var(--good); }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 14px; font-weight: 500; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab-body { display: grid; gap: 12px; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; background: var(--surface); }
+th.sortable { cursor: pointer; user-select: none; }
+th[aria-sort="descending"]::after { content: ' ↓'; } th[aria-sort="ascending"]::after { content: ' ↑'; }
+tbody tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.sources { color: var(--muted); white-space: normal; min-width: 160px; }
+tr.best td { background: var(--accent-soft); }
+tr.coin td:first-child { box-shadow: inset 3px 0 0 var(--coin); }
+.locked-hint { display: block; margin-top: 3px; }
+.plan-list .locked { font-weight: 400; color: var(--muted); font-size: .85em; }
+.item { display: inline-flex; align-items: center; gap: 6px; }
+.item-icon { width: 32px; height: 32px; flex: none; image-rendering: pixelated; margin: -6px 0; }
+.pill { display: inline-block; font: 600 11px var(--body); padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
+.pill.good { color: var(--good); border-color: var(--good); } .pill.warn { color: var(--warn); border-color: var(--warn); } .pill.bad { color: var(--bad); border-color: var(--bad); }
+.tag { font: 600 11px var(--body); letter-spacing: 0.04em; color: var(--warn); border: 1px solid var(--warn); border-radius: 3px; padding: 0 6px; }
+.meter { display: inline-block; width: 90px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+.meter span { display: block; height: 100%; background: var(--item); }
+.tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.tools .grow { flex: 1 1 200px; }
+.codex { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+.codex .field { min-width: 180px; } .codex .small { min-width: 90px; width: 100px; }
+.codex-out { margin: 0; padding-bottom: 7px; font-size: 14px; }
+.codex-out b { font-family: var(--mono); }
+h4 { font: 600 11px var(--body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 4px 0 0; }
+.muted { color: var(--muted); }
+.charm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; }
+.charm-row { display: grid; grid-template-columns: minmax(0, 1fr) 62px; gap: 6px; align-items: center; font-size: 13px; }
+.charm-row select { padding: 4px 6px; font-size: 13px; }
+.plan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.plan-list li { display: grid; gap: 1px; }
+.plan-list .who { font-size: 12px; color: var(--muted); }
+.plan-list .who em { font-style: normal; color: var(--accent); }
+.plan-list .what { font-weight: 600; }
+.gain-tag { font: 500 12px var(--mono); color: var(--good); }
+td.heat { background: color-mix(in srgb, var(--item) calc(var(--heat) * 28%), transparent); }
+td.heat.chosen { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 600; }
+.entry-status { margin-left: auto; font: 400 13px var(--body); letter-spacing: 0; }
+tr.bottleneck td { background: var(--accent-soft); }
+footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+@media (prefers-reduced-motion: no-preference) { .split span { transition: flex 0.3s ease; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <h1>Baiak Loot Planner</h1>
+    <p>Onde pôr Gut e Scavenge, quanto cada item rende por hora e quanto falta para o bestiário. Ferramenta de fã, sem vínculo oficial com o Baiak Idle.</p>
+  </header>
+  <div class="layout">
+    <div id="controls"></div>
+    <main id="results"></main>
+  </div>
+  <footer>Dados extraídos do cliente do jogo (__DATA_VERSION__). Modelo de loot calibrado com uma sessão real: cada membro da party rola os itens com o próprio bônus; moedas rolam uma vez por kill.</footer>
+</div>
+
+<script type="application/json" id="game-data">__GAME_DATA__</script>
+<script type="application/json" id="example-data">__EXAMPLE_DATA__</script>
+<script type="application/json" id="item-images">__ITEM_IMAGES__</script>
+<script type="text/plain" id="collector-source">__COLLECTOR__</script>
+<script>__APP__</script>

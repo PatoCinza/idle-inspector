@@ -1,0 +1,9 @@
+{
+  "note": "Sessão real na hunt Rotten Golem (party de 3), coletada pelo WebSocket em 27/09/2026. Janela: início da sessão até 01:12:11, Gut tier 3 no Branchy Crawler, sem Scavenge.",
+  "lootPcts": [0, 9.8, 4],
+  "charms": { "gut": { "monster": "branchy_crawler", "tier": 3 } },
+  "minutes": 72.18,
+  "roomsPerHour": 34.4,
+  "kills": { "rotten_golem": 758, "mould_phantom": 720, "branchy_crawler": 703 },
+  "observed": {"crystal coin":1743,"great spirit potion":2260,"sacred tree amulet":100,"giant shimmering pearl":87,"gold ingot":686,"mould heart":118,"wand of defiance":81,"wand of voodoo":65,"wand of starstorm":131,"underworld rod":88,"war axe":44,"ultimate health potion":1364,"green gem":153,"mercenary sword":51,"crystalline sword":17,"roots":188,"twiceslicer":19,"wood cape":28,"titan axe":68,"hammer of wrath":25,"blue gem":151,"crawler's essence":53,"violet gem":135,"collar of blue plasma":35,"stone skin amulet":24,"terra legs":34,"ornate crossbow":29,"giant sword":47,"terra amulet":56,"ruthless axe":13,"terra mantle":12,"mould robe":64,"ring of blue plasma":31,"fur armor":38,"nightmare blade":15,"crystal crossbow":47,"rubber cap":9}
+}

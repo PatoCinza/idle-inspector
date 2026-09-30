@@ -1,0 +1,16 @@
+{
+  "name": "baiak-loot-planner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "extract": "node scripts/extract.js",
+    "build": "node scripts/build.js",
+    "images": "node scripts/fetch-images.js",
+    "compare": "node scripts/compare.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

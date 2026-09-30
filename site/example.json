@@ -1,0 +1,131 @@
+{
+ "note": "Exemplo: sessão real medida na hunt Rotten Golem em 27/09/2026. Cole o seu código para ver os seus números.",
+ "huntId": "rottengolem-cave",
+ "killsByMonster": {
+  "rotten_golem": 630,
+  "mould_phantom": 598,
+  "branchy_crawler": 584
+ },
+ "roomsPerHour": 34.4,
+ "party": [
+  {
+   "name": "PatoCinza",
+   "lootPct": 0,
+   "level": 871,
+   "maxHp": 16146,
+   "maxMana": 4964,
+   "critChance": 17.572,
+   "critDmg": 143.534,
+   "avgHit": 0,
+   "avatarUptime": 36
+  },
+  {
+   "name": "Pato Druida",
+   "lootPct": 9.8,
+   "level": 865,
+   "maxHp": 5466,
+   "maxMana": 30570,
+   "critChance": 17.922,
+   "critDmg": 82.534,
+   "avgHit": 0,
+   "avatarUptime": 39
+  },
+  {
+   "name": "Pato Mago",
+   "lootPct": 4,
+   "level": 905,
+   "maxHp": 5393,
+   "maxMana": 33708,
+   "critChance": 24.472,
+   "critDmg": 152.034,
+   "avgHit": 0,
+   "avatarUptime": 43
+  }
+ ],
+ "bestiary": {
+  "rotten_golem": 2155,
+  "mould_phantom": 2114,
+  "branchy_crawler": 2046
+ },
+ "observed": {
+  "minutes": 72,
+  "loot": {
+   "crystal coin": 1743,
+   "great spirit potion": 2260,
+   "sacred tree amulet": 100,
+   "giant shimmering pearl": 87,
+   "gold ingot": 686,
+   "mould heart": 118,
+   "wand of defiance": 81,
+   "wand of voodoo": 65,
+   "wand of starstorm": 131,
+   "underworld rod": 88,
+   "war axe": 44,
+   "ultimate health potion": 1364,
+   "green gem": 153,
+   "mercenary sword": 51,
+   "crystalline sword": 17,
+   "roots": 188,
+   "twiceslicer": 19,
+   "wood cape": 28,
+   "titan axe": 68,
+   "hammer of wrath": 25,
+   "blue gem": 151,
+   "crawler's essence": 53,
+   "violet gem": 135,
+   "collar of blue plasma": 35,
+   "stone skin amulet": 24,
+   "terra legs": 34,
+   "ornate crossbow": 29,
+   "giant sword": 47,
+   "terra amulet": 56,
+   "ruthless axe": 13,
+   "terra mantle": 12,
+   "mould robe": 64,
+   "ring of blue plasma": 31,
+   "fur armor": 38,
+   "nightmare blade": 15,
+   "crystal crossbow": 47,
+   "rubber cap": 9
+  },
+  "kills": {
+   "rotten_golem": 758,
+   "mould_phantom": 720,
+   "branchy_crawler": 703
+  },
+  "rooms": 41.4,
+  "charms": {
+   "gut": {
+    "monster": "branchy_crawler",
+    "tier": 3
+   }
+  }
+ },
+ "owned": {
+  "wound": 3,
+  "freeze": 3,
+  "zap": 3,
+  "divine_wrath": 3,
+  "parry": 3,
+  "savage_blow": 3,
+  "adrenaline_burst": 3,
+  "scavenge": 3,
+  "gut": 3,
+  "fatal_hold": 3
+ },
+ "assigned": {
+  "scavenge": {
+   "monster": "rotten_golem",
+   "tier": 3
+  },
+  "gut": {
+   "monster": "branchy_crawler",
+   "tier": 3
+  },
+  "adrenaline_burst": {
+   "monster": "mould_phantom",
+   "tier": 3
+  }
+ },
+ "codex": null
+}
