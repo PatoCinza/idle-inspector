@@ -98,4 +98,6 @@ tr.bottleneck { background: rgba(242, 198, 107, 0.1); }
 .card h4 { margin: 0 0 2px; font-size: 12px; }
 .card p { margin: 2px 0; }
 .ghost.inline { padding: 0 6px; color: #f2c66b; }
+.tip { text-decoration: underline dotted #6f7180; text-underline-offset: 3px; cursor: help; }
+td.wrap { white-space: normal; min-width: 120px; }
 `;

@@ -71,11 +71,11 @@ Cada evento leva um identificador aleatório da instalação (`crypto.randomUUID
 
 ### Relay (Cloudflare Worker)
 
-O Firefox no modo rigoroso e os bloqueadores barram `us.i.posthog.com`. O `relay/worker.js` é um Cloudflare Worker gratuito que recebe o lote em `/e` e repassa para o PostHog. Ele só aceita a chave deste projeto, recusa corpo acima de 1 MB e não repassa cabeçalhos do jogador, então o PostHog vê o IP da Cloudflare, não o de quem joga.
+O Firefox no modo rigoroso e os bloqueadores barram `us.i.posthog.com`. O `relay/worker.js` é um Cloudflare Worker gratuito que recebe o lote em `/v1/punk` e repassa para o PostHog. Ele só aceita a chave deste projeto e lotes no formato da extensão (até 500 eventos `blp_*`, com `distinct_id`, `timestamp`, `$process_person_profile: false` e `$geoip_disable: true`), recusa corpo acima de 1 MB e não repassa cabeçalhos do jogador, então o PostHog vê o IP da Cloudflare, não o de quem joga. Um lote com a chave do projeto que for recusado (grande demais ou fora do formato) vira um evento `blp_relay_rejected` com o motivo, o tamanho, os nomes dos eventos, a instalação e a versão. O pior lote possível (todas as criaturas do jogo com amostra pendente e 500 salas na janela) fica em torno de 760 KB, e um teste falha se ele passar de 900 KB.
 
-Deploy pelo painel: dash.cloudflare.com → Workers & Pages → Create → Hello World → nome `blp-relay` → Deploy → Edit code → cole o `relay/worker.js` → Deploy. Ou, com o Node: `cd relay && npx wrangler login && npx wrangler deploy`.
+Deploy pelo painel: dash.cloudflare.com → Workers & Pages → Create → Hello World → nome `blp-vega` → Deploy → Edit code → cole o `relay/worker.js` → Deploy. Ou, com o Node: `cd relay && npx wrangler login && npx wrangler deploy`.
 
-Depois, troque `POSTHOG.ingestUrl` em `src/posthog.js` pela URL do Worker com `/e` (por exemplo `https://blp-relay.<sua-conta>.workers.dev/e`). O build tira dali a `host_permissions`.
+Depois, troque `POSTHOG.ingestUrl` em `src/posthog.js` pela URL do Worker com `/v1/punk` (por exemplo `https://blp-vega.<sua-conta>.workers.dev/v1/punk`). O build tira dali a `host_permissions`.
 
 ## Experimento A/B (ex.: Adrenaline Burst)
 

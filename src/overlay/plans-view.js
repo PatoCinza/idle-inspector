@@ -140,19 +140,18 @@ const signed = (fraction) => `+${(fraction * 100).toLocaleString('pt-BR', { maxi
 
 const UNIT_LABEL = { profit: '/h', xp: ' xp/h' };
 
-const valueOf = (pick, objective) => (pick.value === null || !objective ? '' : `+${formatGold(pick.value)}${UNIT_LABEL[objective]} · `);
+const valueOf = (pick, objective) => (pick.value === null || !objective ? null : `+${formatGold(pick.value)}${UNIT_LABEL[objective]}`);
 
-const pickNote = (pick, objective) => {
-  const parts = [
-    valueOf(pick, objective),
-    pick.reflected > 0 || !('avoided' in pick) ? signed(pick.creatureGain) : '',
-    'avoided' in pick ? ` · evita ${formatGold(pick.avoided)}/h` : '',
-  ].join('');
-  return ` <span class="dim">${parts}</span>`;
-};
+export const pickNote = (pick, objective) => [
+  valueOf(pick, objective),
+  pick.reflected > 0 || !('avoided' in pick) ? `${signed(pick.creatureGain)} de dano na criatura` : null,
+  'avoided' in pick ? `evita ${formatGold(pick.avoided)}/h de dano` : null,
+].filter(Boolean).join(' · ');
+
+const withTip = (name, tip) => (tip ? `<span class="tip" title="${escapeHtml(tip)}">${escapeHtml(name)}</span>` : escapeHtml(name));
 
 const majorCell = (row, objective) => {
-  if (row.majorName) return `${escapeHtml(row.majorName)}${pickNote(row.major, objective)}`;
+  if (row.majorName) return withTip(row.majorName, pickNote(row.major, objective));
   if (!row.locked) return '<span class="dim">sem major</span>';
   const after = row.lockedUnlockName ? ` · depois: ${escapeHtml(row.lockedUnlockName)}` : '';
   return `<span class="warn">bestiário ${formatInteger(row.locked.have)}/${formatInteger(row.locked.goal)}</span> <span class="dim">faltam ${formatDuration(row.locked.hours)}${after}</span>`;
@@ -160,7 +159,7 @@ const majorCell = (row, objective) => {
 
 const minorCell = (row, objective) => {
   if (!row.minorName) return '<span class="dim">—</span>';
-  return `${escapeHtml(row.minorName)}${row.minor.kind === 'damage' ? pickNote(row.minor, objective) : ''}`;
+  return withTip(row.minorName, row.minor.kind === 'damage' ? pickNote(row.minor, objective) : 'Escolhido pelo loot (plano de Gut e Scavenge abaixo)');
 };
 
 const charmRow = (objective) => (row) => `<tr>
@@ -168,7 +167,7 @@ const charmRow = (objective) => (row) => `<tr>
   <td class="n">${formatPercent(row.weight)}</td>
   <td>${majorCell(row, objective)}</td>
   <td>${minorCell(row, objective)}</td>
-  <td class="dim">${escapeHtml(row.equipped.join(', ') || '—')}</td>
+  <td class="dim wrap">${escapeHtml(row.equipped.join(', ') || '—')}</td>
 </tr>`;
 
 const lootRow = (plan, index) => `<tr class="${index === 0 ? 'bottleneck' : ''}">
@@ -239,7 +238,7 @@ const defenseRow = (row) => `<tr>
 const defenseSection = (table) => (table.defense?.length
   ? `<h3>Dano recebido</h3>
     <table>
-      <thead><tr><th>Criatura</th><th class="n">Recebido</th><th class="n">%</th><th>Defesa equipada</th><th class="n">Parry evita</th><th class="n">Dodge evita</th><th class="n">Supplies poupadas</th></tr></thead>
+      <thead><tr><th>Criatura</th><th class="n">Recebido</th><th class="n">%</th><th>Defesa</th><th class="n" title="Dano que o Parry evitaria por hora (e devolveria como dano puro)">Parry</th><th class="n" title="Dano que o Dodge evitaria por hora">Dodge</th><th class="n" title="Supplies de cura poupadas por hora com o dano evitado">Poupa</th></tr></thead>
       <tbody>${table.defense.map(defenseRow).join('')}</tbody>
     </table>`
   : '<p class="waiting">Dano recebido ainda não medido: Parry e Dodge entram no plano depois dos primeiros golpes recebidos.</p>');

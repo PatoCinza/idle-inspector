@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildEvents, emptyUsage, countUsage, initialCursor, anonymousMember, batchOf, POSTHOG } from '../src/telemetry.js';
+import { buildEvents, emptyUsage, countUsage, initialCursor, anonymousMember, batchOf, POSTHOG, MAX_PHASES } from '../src/telemetry.js';
 import { initialApp, reduceApp } from '../src/app-state.js';
 
 const dataset = JSON.parse(readFileSync(new URL('../data/game.json', import.meta.url)));
@@ -103,4 +103,18 @@ test('cada sala leva os charms equipados quando ela terminou, para o A/B', () =>
   const window = buildEvents({ dataset, app: withLegacy }).events.find((e) => e.event === 'blp_hunt_window').properties;
   assert.deepEqual(window.phase_ms, [39000, 40000, 43000]);
   assert.deepEqual(window.phase_charms, [null, 'adrenaline_burst', '']);
+});
+
+test('o pior lote possível cabe no limite de 1 MB do relay', () => {
+  const RELAY_MAX_BYTES = 1_000_000;
+  const quantities = (max = 1) => Object.fromEntries(Array.from({ length: max }, (_, i) => [i + 1, 99999]));
+  const everyDrop = (monster) => Object.fromEntries((monster.loot ?? []).map((entry) => [entry.name, { drops: 99999, qty: quantities(entry.max) }]));
+  const monsters = Object.fromEntries(Object.entries(dataset.monsters).map(([key, monster]) => [key, { kills: 99999, factor: 99999.1234, items: everyDrop(monster) }]));
+  const everyCharm = dataset.charms.map((charm) => charm.id).slice(0, 12);
+  const app = { ...hunting(), phases: Array.from({ length: 2 * MAX_PHASES }, () => ({ ms: 123456, charms: everyCharm })), dropLog: { monsters } };
+  const usage = ['drops', 'bestiary', 'codex', 'charms', 'sample', 'start'].reduce((total, tab) => countUsage(total, { type: 'tab', tab }), emptyUsage());
+  const { events } = buildEvents({ dataset, app, usage });
+  const body = JSON.stringify(batchOf({ events, installId: crypto.randomUUID(), version: '10.10.10', now: Date.now() }));
+  assert.equal(events.length, Object.keys(dataset.monsters).length + 2);
+  assert.ok(Buffer.byteLength(body) < RELAY_MAX_BYTES * 0.9, `${Buffer.byteLength(body)} bytes`);
 });

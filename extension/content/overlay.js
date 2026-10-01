@@ -9,6 +9,7 @@ import { sampleTable, measuredQuantities } from '../../src/drop-log.js';
 import { skippedItems } from '../../src/model.js';
 import { STYLES } from '../../src/overlay/styles.js';
 import { renderWelcome, welcomeChecklist } from '../../src/overlay/welcome-view.js';
+import { patchHtml } from '../../src/overlay/patch.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
@@ -89,7 +90,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
   const tabsNav = shadow.querySelector('.tabs');
 
   const renderTabs = () => {
-    tabsNav.innerHTML = TABS.map(({ id, label }) => `<button class="tab${id === ui.tab ? ' active' : ''}" data-tab="${id}">${label}</button>`).join('');
+    patchHtml(tabsNav, TABS.map(({ id, label }) => `<button class="tab${id === ui.tab ? ' active' : ''}" data-tab="${id}">${label}</button>`).join(''));
   };
 
   const planner = shadow.querySelector('.planner');
@@ -103,10 +104,19 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     ? plannedDropsTable({ dataset, hunt: plan.hunt, saved: plan.mode === 'saved' ? plan.saved : null, party: party(), charmSlots: app.charmSlots, quantities: quantities(), skipped: skipped() })
     : dropsTable({ dataset, window: plan.live, party: party(), charmSlots: app.charmSlots, quantities: quantities(), skipped: skipped() }));
 
+  let sectionCache = null;
+
+  const cachedSection = (section, hunt) => {
+    const key = { codex: app.codex, section, hunt: hunt?.id ?? null };
+    const fresh = sectionCache && sectionCache.key.codex === key.codex && sectionCache.key.section === key.section && sectionCache.key.hunt === key.hunt;
+    if (!fresh) sectionCache = { key, value: codexSection({ dataset, section, codex: app.codex, hunt }) };
+    return sectionCache.value;
+  };
+
   const huntCodex = (plan) => {
     const drops = dropsOf(plan);
     const rows = drops.unit === 'hour' ? drops.rows : [];
-    const others = codexSection({ dataset, section: 'hunt', codex: app.codex, hunt: plan.hunt });
+    const others = cachedSection('hunt', plan.hunt);
     if (!plan.hunt) return renderCodexSection(others, dataset.rarities);
     const detail = renderCodex(codexTable({ dataset, hunt: plan.hunt, rows, codex: app.codex }), { warnUnread: false });
     return `${app.codex ? '' : UNREAD_CODEX}<div class="split">
@@ -124,7 +134,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       const section = ui.codexSection;
       const content = section === 'hunt'
         ? huntCodex(plan)
-        : renderCodexSection(codexSection({ dataset, section, codex: app.codex, hunt: plan.hunt }), dataset.rarities);
+        : renderCodexSection(cachedSection(section, plan.hunt), dataset.rarities);
       return renderCodexNav(section) + content;
     },
     charms: (plan) => renderCharms(charmTable({
@@ -164,13 +174,10 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
   const render = () => {
     if (!app) return;
     const plan = planFor({ dataset, app, plannedHunt: ui.plannedHunt });
-    const scrollTop = shadow.querySelector('.body .scroll')?.scrollTop ?? 0;
     renderTabs();
     renderPlanner(plan);
-    panel.classList.toggle('fill', ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt));
-    body.innerHTML = (views[ui.tab] ?? views.drops)(plan);
-    const scroll = shadow.querySelector('.body .scroll');
-    if (scroll) scroll.scrollTop = scrollTop;
+    panel.classList.toggle('fill', (ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt)) || ui.tab === 'charms');
+    patchHtml(body, (views[ui.tab] ?? views.drops)(plan));
   };
 
   const scheduleRender = () => {

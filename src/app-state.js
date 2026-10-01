@@ -56,7 +56,10 @@ export const reduceApp = (app, event, env = {}) => {
   if (event.type === 'lootConfig') return { ...app, lootConfig: event.config };
   if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), { ms: event.ms, charms: app.charmSlots ? assignedCharmIds(app.charmSlots) : null }] };
   if (event.type === 'charms') return { ...app, charmSlots: event.slots };
-  if (event.type === 'codex') return { ...app, codex: trackedCodex(event.codex) };
+  if (event.type === 'codex') {
+    const codex = trackedCodex(event.codex);
+    return JSON.stringify(codex) === JSON.stringify(app.codex) ? app : { ...app, codex };
+  }
   if (event.type === 'procs') return { ...app, procs: event.procs };
   if (event.type === 'charmStats') return { ...app, charmStats: event.stats };
   if (event.type === 'party') return { ...app, party: { members: event.members, readAt: event.t } };
