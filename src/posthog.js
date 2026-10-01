@@ -1,4 +1,6 @@
-export const POSTHOG = { host: 'https://us.i.posthog.com', key: 'phc_uD2banhuSNmNhc496TXp3yDo7RkVpUmfPCbSBzzEXwNT' };
+export const POSTHOG = { key: 'phc_uD2banhuSNmNhc496TXp3yDo7RkVpUmfPCbSBzzEXwNT', ingestUrl: 'https://us.i.posthog.com/batch/' };
+
+export const ingestPermission = (url = POSTHOG.ingestUrl) => `${new URL(url).origin}/*`;
 export const DATA_COLLECTION = ['technicalAndInteraction'];
 export const KEYS = { consent: 'blp.consent', asked: 'blp.consentAsked', installId: 'blp.installId', cursor: 'blp.telemetryCursor' };
 
@@ -26,4 +28,10 @@ export const firefoxConsent = async (api) => {
   }
 };
 
-export const consentGranted = async (api) => (await firefoxConsent(api)) ?? (await api.storage.local.get(KEYS.consent))[KEYS.consent]?.granted === true;
+export const consentDetails = async (api) => {
+  const firefox = await firefoxConsent(api);
+  const stored = (await api.storage.local.get(KEYS.consent))[KEYS.consent]?.granted === true;
+  return { firefox, stored, granted: firefox ?? stored };
+};
+
+export const consentGranted = async (api) => (await consentDetails(api)).granted;

@@ -6,9 +6,6 @@
   "permissions": [
     "storage"
   ],
-  "host_permissions": [
-    "https://us.i.posthog.com/*"
-  ],
   "content_scripts": [
     {
       "matches": [

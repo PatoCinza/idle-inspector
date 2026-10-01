@@ -49,13 +49,12 @@ export const normalizeParty = (party, fallbackHit = null) => {
 
 const memberGain = (key, value, monster, member) => {
   const hp = monster.hp;
-  const procCrit = 1 + member.critChance * member.critDmg;
   if (ELEMENTAL.has(key)) {
     const resist = monster.resist?.[monster.charmElement] ?? 0;
-    return (value * Math.min(2 * member.level, 0.05 * hp) * (1 - resist / 100) * procCrit) / member.avgHit;
+    return (value * Math.min(2 * member.level, 0.05 * hp) * (1 - resist / 100)) / member.avgHit;
   }
-  if (key === 'overpower') return (value * Math.min(0.08 * hp, 0.05 * (member.maxHp ?? 0)) * procCrit) / member.avgHit;
-  if (key === 'overflux') return (value * Math.min(0.08 * hp, 0.025 * (member.maxMana ?? 0)) * procCrit) / member.avgHit;
+  if (key === 'overpower') return (value * Math.min(0.08 * hp, 0.05 * (member.maxHp ?? 0))) / member.avgHit;
+  if (key === 'overflux') return (value * Math.min(0.08 * hp, 0.025 * (member.maxMana ?? 0))) / member.avgHit;
   if (key === 'savage_blow') return (member.critShare * value) / member.critMultiplier;
   if (key === 'low_blow') {
     if (member.critChance <= 0) return 0;
@@ -99,8 +98,7 @@ export const NO_CALIBRATION = { proc: 1, crit: 1, fatal: 1, carnage: 1, source: 
 
 export const DEFAULT_CALIBRATION = {
   ...NO_CALIBRATION,
-  proc: 1.11,
-  source: 'Infernal Demon, 27/09 (procs) e Bloated Man-Maggot, 01/10 (Savage Blow e Fatal Hold)',
+  source: 'Bloated Man-Maggot, 01/10 (Savage Blow e Fatal Hold); procs sem crítico, ainda sem fator medido',
 };
 
 export const damageGain = ({ dataset, charmKey, tier, monsterKey, party, calibration = NO_CALIBRATION }) => {
@@ -216,7 +214,7 @@ const pickDetails = (option, monster, gain, unit) => ({
   ...(option.defensive ? { avoided: option.effects[monster].avoided, reflected: option.effects[monster].reflected, saved: option.saved[monster] } : {}),
 });
 
-export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, lootPcts, party, owned, bossRollsLoot, quantities = {}, bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION, objective = 'profit', economy = null, defense = null }) => {
+export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, lootPcts, party, owned, bossRollsLoot, quantities = {}, skipped = new Set(), bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION, objective = 'profit', economy = null, defense = null }) => {
   const keys = creatures(hunt);
   const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour });
   const members = normalizeParty(party, fallbackHit);
@@ -239,7 +237,7 @@ export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPe
   const majorKeys = keys.filter((k) => !locks[k]);
   const majorPick = bestAssignment(majorKeys, majors);
 
-  const lootPlans = charmPlans({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned, bossRollsLoot, quantities });
+  const lootPlans = charmPlans({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned, bossRollsLoot, quantities, skipped });
   const [loot] = lootPlans;
   const lootMonsters = new Set(Object.values(loot.charms).map((c) => c.monster));
   const damageMinors = withGains(ownedOf('minor').filter((c) => DAMAGE_MINORS.has(c.key)));

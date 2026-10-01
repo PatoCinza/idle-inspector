@@ -269,6 +269,7 @@ const SAMPLE_STATUS = {
   quantity: '<span class="warn">qtd. acima do máx.</span>',
   unlisted: '<span class="warn">fora da tabela</span>',
   empty: '<span class="dim">—</span>',
+  skipped: '<span class="dim">não coletado</span>',
 };
 
 const percentOrDash = (value) => (value === null ? '—' : formatPercent(value));

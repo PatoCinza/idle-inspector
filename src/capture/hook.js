@@ -5,8 +5,14 @@ import { combatFromLog, mergeCombat, hasCombat } from '../combat.js';
 const ROOM_DATA = 13;
 const ANALYZER_PANELS = new Set(['hunt', 'loot']);
 
-const fromPatch = ({ bestiary, loot, supply, codex }) => [
+const lootConfigOf = (config) => ({
+  skip: config.skip.filter((name) => typeof name === 'string'),
+  codexOnly: config.codexOnly === true,
+});
+
+const fromPatch = ({ bestiary, loot, supply, codex, lootConfig }) => [
   ...(bestiary || loot || supply ? [{ type: 'snapshot', bestiary, loot, supply }] : []),
+  ...(lootConfig ? [{ type: 'lootConfig', config: lootConfigOf(lootConfig) }] : []),
   ...(codex ? [{ type: 'codex', codex }] : []),
 ];
 

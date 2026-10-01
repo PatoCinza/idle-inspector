@@ -6,6 +6,7 @@ import { codexTable, codexSection } from '../../src/codex.js';
 import { charmTable } from '../../src/charm-plan.js';
 import { renderBestiary, renderCodex, renderCodexNav, renderCodexSection, renderCharms, renderSample, UNREAD_CODEX } from '../../src/overlay/plans-view.js';
 import { sampleTable, measuredQuantities } from '../../src/drop-log.js';
+import { skippedItems } from '../../src/model.js';
 import { STYLES } from '../../src/overlay/styles.js';
 
 const RENDER_DELAY_MS = 500;
@@ -94,10 +95,11 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
 
   const party = () => app.party?.members ?? null;
   const quantities = () => measuredQuantities(app.dropLog);
+  const skipped = () => skippedItems(app.lootConfig);
 
   const dropsOf = (plan) => (plan.mode === 'saved' || plan.mode === 'perKill'
-    ? plannedDropsTable({ dataset, hunt: plan.hunt, saved: plan.mode === 'saved' ? plan.saved : null, party: party(), charmSlots: app.charmSlots, quantities: quantities() })
-    : dropsTable({ dataset, window: plan.live, party: party(), charmSlots: app.charmSlots, quantities: quantities() }));
+    ? plannedDropsTable({ dataset, hunt: plan.hunt, saved: plan.mode === 'saved' ? plan.saved : null, party: party(), charmSlots: app.charmSlots, quantities: quantities(), skipped: skipped() })
+    : dropsTable({ dataset, window: plan.live, party: party(), charmSlots: app.charmSlots, quantities: quantities(), skipped: skipped() }));
 
   const huntCodex = (plan) => {
     const drops = dropsOf(plan);
@@ -133,6 +135,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       combat: app.combat ?? null,
       bestiary: app.session.last?.bestiary ?? null,
       quantities: quantities(),
+      skipped: skipped(),
       xp: app.xp ?? 0,
       objective: ui.charmObjective,
     }), ui.charmObjective),
@@ -144,7 +147,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       mode: plan.mode,
       saved: plan.saved,
     })),
-    sample: (plan) => renderSample(sampleTable({ dataset, hunt: plan.hunt, log: app.dropLog })),
+    sample: (plan) => renderSample(sampleTable({ dataset, hunt: plan.hunt, log: app.dropLog, skipped: skipped() })),
   };
 
   const renderPlanner = (plan) => {

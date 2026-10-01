@@ -91,7 +91,8 @@ export const wilson = (successes, trials) => {
   return [successes === 0 ? 0 : center - half, successes === trials ? 1 : center + half];
 };
 
-const statusOf = ({ listed, kills, predicted, interval, quantity, tableMax }) => {
+const statusOf = ({ listed, skipped, kills, predicted, interval, quantity, tableMax }) => {
+  if (skipped) return 'skipped';
   if (!listed) return 'unlisted';
   if (!kills) return 'empty';
   if (quantity.max != null && quantity.max > tableMax) return 'quantity';
@@ -100,7 +101,7 @@ const statusOf = ({ listed, kills, predicted, interval, quantity, tableMax }) =>
   return 'ok';
 };
 
-const sampleRow = ({ entry, item, stats, kills, factor }) => {
+const sampleRow = ({ entry, item, stats, kills, factor, skipped }) => {
   const drops = stats?.drops ?? 0;
   const quantity = quantityStats(stats?.qty);
   const interval = wilson(drops, kills);
@@ -117,26 +118,27 @@ const sampleRow = ({ entry, item, stats, kills, factor }) => {
     predictedQuantity: entry ? averageQuantity(entry) : null,
     quantity,
     usesMeasuredQuantity: drops >= MIN_QUANTITY_DROPS,
-    status: statusOf({ listed: Boolean(entry), kills, predicted, interval, quantity, tableMax }),
+    skipped,
+    status: statusOf({ listed: Boolean(entry), skipped, kills, predicted, interval, quantity, tableMax }),
   };
 };
 
 const byPrediction = (a, b) => Number(b.listed) - Number(a.listed) || (b.predicted ?? 0) - (a.predicted ?? 0) || b.drops - a.drops;
 
-const creatureSample = (dataset, log) => (monster) => {
+const creatureSample = (dataset, log, skipped) => (monster) => {
   const stats = log?.monsters?.[monster] ?? { kills: 0, factor: 0, items: {} };
   const factor = stats.kills ? stats.factor / stats.kills : null;
   const table = monsterLoot(dataset, monster);
   const listed = new Set(table.map((entry) => entry.name));
   const rows = [
-    ...table.map((entry) => sampleRow({ entry, item: entry.name, stats: stats.items[entry.name], kills: stats.kills, factor })),
-    ...Object.keys(stats.items).filter((item) => !listed.has(item)).map((item) => sampleRow({ entry: null, item, stats: stats.items[item], kills: stats.kills, factor })),
+    ...table.map((entry) => sampleRow({ entry, item: entry.name, stats: stats.items[entry.name], kills: stats.kills, factor, skipped: skipped.has(entry.name) })),
+    ...Object.keys(stats.items).filter((item) => !listed.has(item)).map((item) => sampleRow({ entry: null, item, stats: stats.items[item], kills: stats.kills, factor, skipped: skipped.has(item) })),
   ];
   return { monster, name: dataset.monsters[monster]?.name ?? monster, kills: stats.kills, factor, rows: rows.sort(byPrediction) };
 };
 
-export const sampleTable = ({ dataset, hunt, log }) => {
+export const sampleTable = ({ dataset, hunt, log, skipped = new Set() }) => {
   if (!hunt) return { ready: false, hunt: null, creatures: [], kills: 0 };
-  const sampled = creatures(hunt).map(creatureSample(dataset, log));
+  const sampled = creatures(hunt).map(creatureSample(dataset, log, skipped));
   return { ready: true, hunt, creatures: sampled, kills: sum(sampled.map((c) => c.kills)) };
 };

@@ -60,12 +60,20 @@ Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de 
   - hunt, duração, kills/h por criatura e salas/h;
   - o tempo de cada sala (`phase`), para o A/B de charms como a Adrenaline Burst;
   - a party sem nomes: vocação, level arredondado para baixo em múltiplos de 50, bônus de loot, crítico, tempo em avatar, golpes e dano;
-  - os charms equipados e o Charm Analyzer;
-  - o loot observado e o previsto pelo modelo;
+  - os charms equipados, cada um com o ganho previsto pelo modelo sem calibração (fração do dano na criatura) ou o dano evitado previsto (Parry e Dodge), e o Charm Analyzer;
+  - o loot observado e o previsto pelo modelo, em quantidade por item e em gold/h;
   - XP/h, dano causado e recebido por criatura e gasto do Supply Analyser.
-- `blp_drop_sample`: o que entrou na aba Amostra desde o último envio, por criatura: kills isoladas, fator de bônus e drops e quantidades por item.
+- `blp_drop_sample`: o que entrou na aba Amostra desde o último envio, por criatura: kills isoladas e fator de bônus. Vai um registro para cada item da tabela da criatura, inclusive os que não caíram, com drops, quantidades, chance prevista, quantidade média prevista e máximo da tabela; itens fora da tabela vão marcados com `unlisted`.
 
 Cada evento leva um identificador aleatório da instalação (`crypto.randomUUID()`, sem relação com a conta), `$process_person_profile: false` (sem perfil de pessoa) e `$geoip_disable: true`. Nunca vão nomes de personagens, de party ou de guild, login nem IDs do jogo. No projeto do PostHog, deixe a captura de IP desligada (Settings → Project → IP data capture). O conteúdo das bags ainda não é coletado.
+
+### Relay (Cloudflare Worker)
+
+O Firefox no modo rigoroso e os bloqueadores barram `us.i.posthog.com`. O `relay/worker.js` é um Cloudflare Worker gratuito que recebe o lote em `/e` e repassa para o PostHog. Ele só aceita a chave deste projeto, recusa corpo acima de 1 MB e não repassa cabeçalhos do jogador, então o PostHog vê o IP da Cloudflare, não o de quem joga.
+
+Deploy pelo painel: dash.cloudflare.com → Workers & Pages → Create → Hello World → nome `blp-relay` → Deploy → Edit code → cole o `relay/worker.js` → Deploy. Ou, com o Node: `cd relay && npx wrangler login && npx wrangler deploy`.
+
+Depois, troque `POSTHOG.ingestUrl` em `src/posthog.js` pela URL do Worker com `/e` (por exemplo `https://blp-relay.<sua-conta>.workers.dev/e`). O build tira dali a `host_permissions`.
 
 ## Experimento A/B (ex.: Adrenaline Burst)
 
@@ -117,6 +125,7 @@ npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.mi
 | `src/avatar.js` | Tempo em avatar de cada membro a partir do `procstats` |
 | `src/defense.js` | Charms defensivos: dano recebido por criatura, Parry e Dodge, supplies por dano recebido |
 | `src/telemetry.js`, `src/posthog.js` | Eventos anônimos do PostHog (montagem e envio), consentimento |
+| `relay/` | Cloudflare Worker que repassa os eventos para o PostHog |
 | `extension/options/` | Página de opções: o que é enviado e o consentimento |
 | `src/drop-log.js` | Amostra local de drops: kills isoladas por criatura, chance e quantidade medidas × previstas |
 | `src/combat.js` | Agrega o `combatlog`: dano, golpes e críticos por vocação, dano por criatura |
@@ -137,6 +146,7 @@ Validado com 72 minutos de hunt no Rotten Golem (2.181 kills, party de 3) e 15 m
 - **Moedas:** um sorteio por kill, sem party, sem bônus de loot e sem Gut. A Scavenge multiplica o valor das moedas daquele monstro.
 - **Bags** (bag you desire, bag you covet, primal bag): um sorteio por kill, sem bônus de loot e sem Gut, pela chance da tabela do monstro.
 - **Monstros com multiplicador especial** (maggots, darklight, radiant): usa a mesma regra do cliente, com teto de 90% e o excedente virando quantidade.
+- **Não coletar (Gerenciar loot):** os itens dessa lista, que chega no estado do jogo, não entram no Loot Analyser. Eles ficam com 0 drops/h, marcados "não coletado", e saem do valor/h, do plano de Gut/Scavenge e da comparação da Amostra. Uma entrada com raridade (`nome#tier`) também tira o item inteiro, porque a raridade das drops não está no modelo.
 - **Boss da sala:** conta como kill da criatura dele e, por padrão, rola a mesma tabela. Há uma opção no site para desligar isso.
 
 Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro de 3% do previsto e as poções empilháveis dentro de 1% (great spirit potion no Rotten Golem, ultimate health potion na Infernal).
@@ -154,7 +164,7 @@ Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro
   - Golpe médio e fração do dano de cada membro vêm do `combatlog`.
   - Fatal Hold: aumenta só o dano que tira os últimos 25% do HP, e o golpe final não passa do HP que resta. O dano a mais é 25% × valor ÷ (1 + valor) do HP, ou 4,2% no tier 3. Nas duas sessões do Bloated Man-Maggot (01/10), o medido ficou 1% e 16% acima do previsto.
   - Carnage: dano da explosão (o menor entre 15% do HP e 6× o level) por kill, ainda sem medição.
-  - O modelo é calibrado com o dano real dos charms, com um fator por família: procs, crítico, Fatal Hold e Carnage. O observado é o dano do charm sobre o dano na criatura sem os charms medidos nela. Sem coleta, usa procs ×1,11 (Infernal Demon, 27/09) e 1,0 nas outras: o Savage Blow e a Fatal Hold do Bloated Man-Maggot (01/10) bateram com a fórmula.
+  - O modelo é calibrado com o dano real dos charms, com um fator por família: procs, crítico, Fatal Hold e Carnage. O observado é o dano do charm sobre o dano na criatura sem os charms medidos nela. Sem coleta, usa 1,0 em todas: o Savage Blow e a Fatal Hold do Bloated Man-Maggot (01/10) bateram com a fórmula, e o fator de procs antigo (×1,11) foi descartado porque supunha procs com crítico.
 - Scavenge: a aba Charms mostra o ouro a mais medido pelo Charm Analyzer ao lado do previsto pelo modelo de loot (moedas da criatura × valor do charm, com o ritmo de kills da janela).
 - Minors: Gut e Scavenge primeiro, pelo loot; a Fatal Hold vai para a criatura que sobrar.
 - O plano otimiza **lucro/h** ou **XP/h** (seletor na aba Charms). Dano a mais vira kills a mais, e por isso loot e XP na mesma proporção. Os majors defensivos disputam a vaga com os ofensivos na mesma unidade:
@@ -169,7 +179,7 @@ Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro
 - **Monstros com multiplicador especial:** a regra do cliente (teto de 90%, excedente em quantidade) é aplicada antes do teto de 100% da party. Essa combinação ainda não foi medida.
 - **Antes de haver combate medido, o golpe médio é estimado** (3,2× o level); a calibração compensa parte do erro.
 - **Golpe médio e crítico medidos incluem os procs de charm**, que aparecem no `combatlog` como golpes sem crítico. Isso puxa a fração do dano em crítico um pouco para baixo (os procs são poucos por cento do dano).
-- **Procs elementais ainda são multiplicados pelo crítico do painel**, mas no `combatlog` eles nunca critam. O fator de procs (×1,11) foi ajustado com essa suposição e precisa ser medido de novo.
+- **Procs (elementais, Overpower e Overflux) não critam**, como no `combatlog`. Sem o crítico, o fator de procs ainda precisa ser medido: no PostHog, a primeira janela do Bloated Man-Maggot deu 0,65–0,74× o previsto.
 - **Codex de boss e de equipamento** mostram só o progresso e o que falta entregar, sem tempo estimado: as lutas de boss não são medidas e a raridade das drops de equipamento não está no modelo.
 - **Hunts limitadas pelo spawn** não ganham kills/h com mais dano. O plano supõe hunt limitada por dano, o que favorece os majors ofensivos.
 - **Supplies por dano recebido** atribuem todo o gasto com poções ao dano recebido, inclusive a mana gasta em ataque. É um teto para o valor do Dodge e do Parry.

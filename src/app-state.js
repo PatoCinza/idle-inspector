@@ -7,7 +7,7 @@ import { initialDropLog, observeSnapshot, disarm, gutOn } from './drop-log.js';
 
 export const APP_VERSION = 1;
 
-export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [] });
+export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null });
 
 const SESSION_EVENTS = new Set(['snapshot', 'reset', 'connect']);
 
@@ -20,6 +20,11 @@ const trackedCodex = (codex) => ({
 
 const lootFactorOf = (app, dataset) => (monster) => partyLootFactor(lootPcts(app.party?.members))
   * (1 + (dataset ? gutOn(dataset, app.charmSlots, monster) : 0));
+
+export const assignedCharmIds = (charmSlots) => Object.entries(charmSlots ?? {})
+  .filter(([, slot]) => slot?.monsterKey)
+  .map(([id]) => Number(id))
+  .sort((a, b) => a - b);
 
 const logOf = (app) => app.dropLog ?? initialDropLog();
 
@@ -48,7 +53,8 @@ export const reduceApp = (app, event, env = {}) => {
   }
   if (event.type === 'combat') return { ...app, combat: mergeCombat(app.combat, event.combat) };
   if (event.type === 'xp') return { ...app, xp: (app.xp ?? 0) + event.xp };
-  if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), event.ms] };
+  if (event.type === 'lootConfig') return { ...app, lootConfig: event.config };
+  if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), { ms: event.ms, charms: app.charmSlots ? assignedCharmIds(app.charmSlots) : null }] };
   if (event.type === 'charms') return { ...app, charmSlots: event.slots };
   if (event.type === 'codex') return { ...app, codex: trackedCodex(event.codex) };
   if (event.type === 'procs') return { ...app, procs: event.procs };

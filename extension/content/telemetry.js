@@ -22,6 +22,7 @@ export const startTelemetry = ({ api, storage, dataset }) => {
     return flushing;
   };
 
+
   setInterval(() => flush(), FLUSH_MS);
 
   return {

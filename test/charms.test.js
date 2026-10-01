@@ -172,3 +172,9 @@ test('calibração mede cada família separada e desconta o dano dos charms da c
   assert.equal(calibration.proc, DEFAULT_CALIBRATION.proc);
   assert.equal(calibration.crit, DEFAULT_CALIBRATION.crit);
 });
+
+test('procs elementais não usam o crítico do painel', () => {
+  const base = { name: 'm', level: 900, maxHp: 5000, maxMana: 30000, critChance: 0, critDmg: 0, avgHit: 3000, dealt: 1 };
+  const gainWith = (member) => damageGain({ dataset, charmKey: 'freeze', tier: 3, monsterKey: hunt.monsters[0], party: normalizeParty([member]) });
+  assert.equal(gainWith({ ...base, critChance: 50, critDmg: 150 }), gainWith(base));
+});

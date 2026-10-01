@@ -15,6 +15,8 @@ export const unitValue = (dataset, name) => CURRENCY[name] ?? dataset.prices[nam
 
 export const averageQuantity = ({ max }) => (1 + (max ?? 1)) / 2;
 
+export const skippedItems = (lootConfig) => new Set((lootConfig?.skip ?? []).map((entry) => entry.replace(/#\d+$/, '')));
+
 export const charmValue = (dataset, key, tier) =>
   (dataset.charms.find((c) => c.key === key)?.chance[tier - 1] ?? 0) / 100;
 
@@ -41,16 +43,18 @@ export const dropChance = (chance, lootPcts, gut) => factoredChance(chance, part
 
 export const killChance = (entry, factor) => (rollsOncePerKill(entry.name) ? entry.chance / CHANCE_SCALE : factoredChance(entry.chance, factor));
 
-export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY, gut = 0, scavenge = 0, quantities = {} }) =>
+export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY, gut = 0, scavenge = 0, quantities = {}, skipped = new Set() }) =>
   monsterLoot(dataset, monsterKey).map((entry) => {
     const currency = isCurrency(entry.name);
-    const perKill = killChance(entry, partyLootFactor(lootPcts) * (1 + gut)) * (quantities[entry.name] ?? averageQuantity(entry));
+    const collected = !skipped.has(entry.name);
+    const perKill = collected ? killChance(entry, partyLootFactor(lootPcts) * (1 + gut)) * (quantities[entry.name] ?? averageQuantity(entry)) : 0;
     const value = unitValue(dataset, entry.name) * (currency ? 1 + scavenge : 1);
     return {
       monster: monsterKey,
       item: entry.name,
       chance: entry.chance / CHANCE_SCALE,
       currency,
+      skipped: !collected,
       priced: currency || entry.name in dataset.prices,
       count: perKill * kills,
       value: perKill * kills * value,
@@ -69,7 +73,7 @@ export const lootKills = ({ hunt, killsByMonster, roomsPerHour = 0, bossRollsLoo
 export const evenSplit = (hunt, killsPerHour) =>
   Object.fromEntries(hunt.monsters.map((key) => [key, killsPerHour / hunt.monsters.length]));
 
-export const huntLoot = ({ dataset, hunt, killsByMonster, roomsPerHour = 0, lootPcts, charms = {}, bossRollsLoot, quantities = {} }) => {
+export const huntLoot = ({ dataset, hunt, killsByMonster, roomsPerHour = 0, lootPcts, charms = {}, bossRollsLoot, quantities = {}, skipped = new Set() }) => {
   const kills = lootKills({ hunt, killsByMonster, roomsPerHour, bossRollsLoot });
   const tierOf = (charmKey, monsterKey) =>
     charms[charmKey]?.monster === monsterKey ? charmValue(dataset, charmKey, charms[charmKey].tier ?? 3) : 0;
@@ -81,11 +85,12 @@ export const huntLoot = ({ dataset, hunt, killsByMonster, roomsPerHour = 0, loot
     gut: tierOf('gut', key),
     scavenge: tierOf('scavenge', key),
     quantities: quantities[key],
+    skipped,
   }));
 };
 
 export const groupByItem = (rows) => Object.values(rows.reduce((acc, row) => {
-  const current = acc[row.item] ?? { item: row.item, currency: row.currency, priced: row.priced, count: 0, value: 0, sources: [] };
+  const current = acc[row.item] ?? { item: row.item, currency: row.currency, priced: row.priced, skipped: row.skipped, count: 0, value: 0, sources: [] };
   return {
     ...acc,
     [row.item]: {
@@ -120,12 +125,12 @@ const lootAssignments = (keys, available) => {
   ];
 };
 
-export const charmPlans = ({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned = { gut: 3, scavenge: 3 }, bossRollsLoot, quantities = {} }) => {
+export const charmPlans = ({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned = { gut: 3, scavenge: 3 }, bossRollsLoot, quantities = {}, skipped = new Set() }) => {
   const available = LOOT_CHARMS.filter((key) => owned[key]).map((key) => ({ key, tier: owned[key] }));
-  const base = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, bossRollsLoot, quantities })).total;
+  const base = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, bossRollsLoot, quantities, skipped })).total;
   return lootAssignments(creatures(hunt), available)
     .map((charms) => {
-      const total = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, charms, bossRollsLoot, quantities })).total;
+      const total = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, charms, bossRollsLoot, quantities, skipped })).total;
       return { charms, gut: charms.gut?.monster ?? null, scavenge: charms.scavenge?.monster ?? null, total, gain: total - base };
     })
     .sort(byDesc('total'));

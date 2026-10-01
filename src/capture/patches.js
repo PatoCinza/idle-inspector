@@ -25,4 +25,6 @@ export const isTracker = (obj) => obj && typeof obj === 'object'
   && Object.values(obj).some((v) => v && typeof v === 'object' && 'n' in v && 'g' in v);
 export const isLootTracker = (obj) => isTracker(obj) && Object.keys(obj).some((k) => k.endsWith(' coin'));
 
+export const isLootConfig = (obj) => obj && typeof obj === 'object' && Array.isArray(obj.skip) && 'noSell' in obj;
+
 export const isBackpack = (obj) => obj && typeof obj === 'object' && Array.isArray(obj.gear) && obj.codex;

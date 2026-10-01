@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dropsTable, findHunt, MIN_MINUTES } from '../src/drops.js';
-import { huntLoot, groupByItem } from '../src/model.js';
+import { huntLoot, groupByItem, skippedItems } from '../src/model.js';
 
 const dataset = JSON.parse(readFileSync(new URL('../data/game.json', import.meta.url)));
 const session = JSON.parse(readFileSync(new URL('./fixtures/rotten-golem-session.json', import.meta.url)));
@@ -89,4 +89,16 @@ test('hunt desconhecida sem kills não mostra tabela', () => {
 
 test('hunt é reconhecida pelas criaturas quando o id ainda não apareceu', () => {
   assert.equal(findHunt(dataset, { huntId: null, kills: session.kills }).id, 'rottengolem-cave');
+});
+
+test('itens em "Não coletar" ficam marcados e fora do valor/h', () => {
+  const skipped = skippedItems({ skip: ['great spirit potion#3'] });
+  assert.deepEqual([...skipped], ['great spirit potion']);
+  const base = table();
+  const result = table({ skipped });
+  const potion = rowOf('great spirit potion', result);
+  assert.equal(potion.skipped, true);
+  assert.equal(potion.perHour, 0);
+  assert.ok(result.totals.total < base.totals.total);
+  assert.equal(rowOf('crystal coin', result).skipped, false);
 });

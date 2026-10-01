@@ -22,9 +22,9 @@ const installId = async () => {
 const sendEvents = async ({ events }) => {
   if (!(await consentGranted(api))) return { ok: false, consent: false };
   if (!events?.length) return { ok: true, consent: true };
-  const body = batchOf({ events, installId: await installId(), version: api.runtime.getManifest().version, now: Date.now() });
-  const response = await fetch(`${POSTHOG.host}/batch/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  return { ok: response.ok, consent: true };
+  const body = JSON.stringify(batchOf({ events, installId: await installId(), version: api.runtime.getManifest().version, now: Date.now() }));
+  const response = await fetch(POSTHOG.ingestUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => null);
+  return { ok: Boolean(response?.ok), consent: true };
 };
 
 const HANDLERS = {

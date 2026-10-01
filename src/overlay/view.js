@@ -52,8 +52,8 @@ const EVERY = {
   kill: (kills) => (Number.isFinite(kills) ? `${formatCount(kills)} kills` : '—'),
 };
 
-const renderRow = (iconUrl, unit) => (row) => `<tr>
-  <td class="item">${icon(row, iconUrl)}<span>${escapeHtml(row.item)}</span></td>
+const renderRow = (iconUrl, unit) => (row) => `<tr${row.skipped ? ' class="dim"' : ''}>
+  <td class="item">${icon(row, iconUrl)}<span>${escapeHtml(row.item)}${row.skipped ? ' <small title="Marcado como Não coletar no Gerenciar loot">· não coletado</small>' : ''}</span></td>
   <td class="creatures">${escapeHtml(row.creatures.join(', '))}</td>
   ${cell(formatPercent(row.chance), true)}
   ${cell(formatCount(row.perHour), true)}

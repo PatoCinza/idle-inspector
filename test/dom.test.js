@@ -8,6 +8,7 @@ import { readSummary } from '../src/dom/summary.js';
 
 const dataset = JSON.parse(readFileSync(new URL('../data/game.json', import.meta.url)));
 const panelPt = readFileSync(new URL('./fixtures/status-panel-pt.txt', import.meta.url), 'utf8');
+const panelPtInline = readFileSync(new URL('./fixtures/status-panel-pt-inline.txt', import.meta.url), 'utf8');
 
 const panelEn = [
   'Level', '1.204', 'XP', '1', 'Hit Points', '9.870', 'Mana', '4.500', 'Capacity', '1',
@@ -18,6 +19,12 @@ const panelEn = [
 test('painel real em português, com cabeçalhos em maiúsculas, é lido por inteiro', () => {
   assert.deepEqual(parseCharacter(panelPt), {
     level: 956, maxHp: 5544, maxMana: 37669, lootPct: 4, critChance: 24.472, critDmg: 153.534,
+  });
+});
+
+test('painel atual, com o texto do painel sem quebras de linha entre rótulo e valor, é lido por inteiro', () => {
+  assert.deepEqual(parseCharacter(panelPtInline), {
+    level: 974, maxHp: 5688, maxMana: 38361, lootPct: 4, critChance: 24.472, critDmg: 153.534,
   });
 });
 

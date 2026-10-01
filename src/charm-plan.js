@@ -54,7 +54,7 @@ const economyOf = ({ common, assigned, window, xp, defense }) => ({
   supplyPerDamage: supplyPerDamage({ supply: window.supply, minutes: window.minutes, defense }),
 });
 
-export const charmTable = ({ dataset, window, party: readParty, charmSlots, charmStats, procs = null, combat = null, bestiary, bossRollsLoot = true, quantities = {}, xp = 0, objective = 'profit' }) => {
+export const charmTable = ({ dataset, window, party: readParty, charmSlots, charmStats, procs = null, combat = null, bestiary, bossRollsLoot = true, quantities = {}, skipped = new Set(), xp = 0, objective = 'profit' }) => {
   const party = withCombat(withAvatar(readParty, procs), combat);
   const hunt = findHunt(dataset, window);
   const missing = requirements({ hunt, window, party, charmSlots });
@@ -70,6 +70,7 @@ export const charmTable = ({ dataset, window, party: readParty, charmSlots, char
     lootPcts: lootPcts(party),
     bossRollsLoot,
     quantities,
+    skipped,
   };
   const defense = defenseOf({ dataset, takenPerHour: takenPerHour({ dataset, hunt, combat, minutes: window.minutes }), assigned });
   const economy = economyOf({ common, assigned, window, xp, defense });

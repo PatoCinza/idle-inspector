@@ -53,7 +53,7 @@ test('patch com bestiário e loot no mesmo frame separa os dois', () => {
 });
 
 test('patch sem JSON reconhecido não produz dados', () => {
-  assert.deepEqual(parsePatch(patchFrame(15, JSON.stringify({ hp: { n: 1 } }))), { bestiary: null, loot: null, supply: null, codex: null });
+  assert.deepEqual(parsePatch(patchFrame(15, JSON.stringify({ hp: { n: 1 } }))), { bestiary: null, loot: null, supply: null, codex: null, lootConfig: null });
 });
 
 test('frames de outros tipos são ignorados', () => {

@@ -146,3 +146,9 @@ test('notify de fase concluída emite o tempo da sala; outros notify não', () =
   capture.incoming(roomData('notify', { kind: 'wave', text: 'Wave {n}/{total} concluída!', params: { n: 1, total: 10 } }));
   assert.deepEqual(events, [{ type: 'phase', ms: 41250, t: 1234 }]);
 });
+
+test('configuração de loot vira evento com a lista de "Não coletar"', () => {
+  const { capture, events } = setup();
+  capture.incoming(patchFrame(15, JSON.stringify({ tiers: [], classes: [], skip: ['serpent sword', 'devil helmet#2', 7], noSell: [], codexOnly: false })));
+  assert.deepEqual(events, [{ type: 'lootConfig', config: { skip: ['serpent sword', 'devil helmet#2'], codexOnly: false }, t: 1234 }]);
+});

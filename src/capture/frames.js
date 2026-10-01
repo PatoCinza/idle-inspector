@@ -1,5 +1,5 @@
 import { readMsgpack } from './msgpack.js';
-import { printableRuns, jsonIn, isBestiary, isTracker, isLootTracker, isBackpack } from './patches.js';
+import { printableRuns, jsonIn, isBestiary, isTracker, isLootTracker, isBackpack, isLootConfig } from './patches.js';
 
 const STATE_FRAMES = new Set([14, 15]);
 const ROOM_DATA = 13;
@@ -9,7 +9,8 @@ export const parsePatch = (bytes) => printableRuns(bytes).map(jsonIn).reduce((fo
   loot: found.loot ?? (!isBestiary(obj) && isLootTracker(obj) ? obj : null),
   supply: found.supply ?? (!isBestiary(obj) && isTracker(obj) && !isLootTracker(obj) ? obj : null),
   codex: isBackpack(obj) ? obj.codex : found.codex,
-}), { bestiary: null, loot: null, supply: null, codex: null });
+  lootConfig: isLootConfig(obj) ? obj : found.lootConfig,
+}), { bestiary: null, loot: null, supply: null, codex: null, lootConfig: null });
 
 export const parseMessage = (bytes) => {
   const type = readMsgpack(bytes, 1);

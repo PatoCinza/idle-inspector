@@ -29,12 +29,13 @@ const row = (dataset, loot) => (group) => {
     everyHours: group.count > 0 ? 1 / group.count : Infinity,
     dropped: loot ? loot[group.item] ?? 0 : null,
     currency: group.currency,
+    skipped: group.skipped,
   };
 };
 
 const measuredIn = (hunt, quantities) => creatures(hunt).reduce((count, key) => count + Object.keys(quantities[key] ?? {}).length, 0);
 
-const dropsFor = ({ dataset, hunt, killsByMonster, roomsPerHour, party, charmSlots, bossRollsLoot, quantities = {}, loot = null }) => {
+const dropsFor = ({ dataset, hunt, killsByMonster, roomsPerHour, party, charmSlots, bossRollsLoot, quantities = {}, skipped = new Set(), loot = null }) => {
   const rows = huntLoot({
     dataset,
     hunt,
@@ -44,11 +45,12 @@ const dropsFor = ({ dataset, hunt, killsByMonster, roomsPerHour, party, charmSlo
     charms: charmSlots ? charmsFromSlots(dataset, charmSlots).assigned : {},
     bossRollsLoot,
     quantities,
+    skipped,
   });
   return { rows: groupByItem(rows).map(row(dataset, loot)), totals: totals(rows), measuredQuantities: measuredIn(hunt, quantities) };
 };
 
-export const dropsTable = ({ dataset, window, party = null, charmSlots = null, bossRollsLoot = true, quantities = {} }) => {
+export const dropsTable = ({ dataset, window, party = null, charmSlots = null, bossRollsLoot = true, quantities = {}, skipped = new Set() }) => {
   const hunt = findHunt(dataset, window);
   const ready = Boolean(hunt) && window.minutes >= MIN_MINUTES;
   const partyRead = Boolean(party?.length);
@@ -68,6 +70,7 @@ export const dropsTable = ({ dataset, window, party = null, charmSlots = null, b
       charmSlots,
       bossRollsLoot,
       quantities,
+      skipped,
       loot: window.loot,
     }),
     partyRead,
@@ -78,7 +81,7 @@ const savedKills = (hunt, saved) => Object.fromEntries(creatures(hunt)
   .filter((key) => hunt.monsters.includes(key) || saved.kills[key] != null)
   .map((key) => [key, saved.kills[key] ?? 0]));
 
-export const plannedDropsTable = ({ dataset, hunt, saved = null, party = null, charmSlots = null, bossRollsLoot = true, quantities = {} }) => ({
+export const plannedDropsTable = ({ dataset, hunt, saved = null, party = null, charmSlots = null, bossRollsLoot = true, quantities = {}, skipped = new Set() }) => ({
   ready: true,
   mode: saved ? 'saved' : 'perKill',
   unit: saved ? 'hour' : 'kill',
@@ -93,6 +96,7 @@ export const plannedDropsTable = ({ dataset, hunt, saved = null, party = null, c
     charmSlots,
     bossRollsLoot,
     quantities,
+    skipped,
   }),
   partyRead: Boolean(party?.length),
 });
