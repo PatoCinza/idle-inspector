@@ -1,0 +1,13 @@
+Baiak Loot Planner — instalação no Chrome
+
+1. Descompacte este arquivo. Vai aparecer a pasta baiak-loot-planner.
+2. Guarde a pasta num lugar fixo (por exemplo, Documentos). O Chrome lê a extensão dela, então não apague nem mova a pasta depois.
+3. Abra chrome://extensions e ligue o "Modo do desenvolvedor", no canto superior direito.
+4. Clique em "Carregar sem compactação" e escolha a pasta baiak-loot-planner.
+5. Abra https://baiakidle.com/jogar/. O overlay aparece sobre o jogo; o botão da extensão na barra do Chrome mostra o overlay se ele estiver escondido.
+
+Dados de uso anônimos vêm desligados. O overlay pergunta uma vez, e dá para mudar depois nas opções da extensão (chrome://extensions → Detalhes → Opções da extensão).
+
+Para atualizar: substitua o conteúdo da pasta pelo da versão nova e clique em recarregar no card da extensão, em chrome://extensions. A medição salva e a amostra de drops continuam.
+
+O Chrome pode avisar que há extensões em modo desenvolvedor ativas. É esperado para extensões instaladas assim.

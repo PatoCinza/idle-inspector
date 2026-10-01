@@ -41,6 +41,11 @@ test('permissões mínimas: storage, sem host de envio (o relay responde CORS); 
   assert.deepEqual((await manifest('firefox')).host_permissions, ['https://baiakidle.com/*']);
 });
 
+test('a versão do manifest acompanha a do package.json', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  for (const target of ['chrome', 'firefox']) assert.equal((await manifest(target)).version, pkg.version);
+});
+
 test('página de opções é empacotada', async () => {
   for (const target of ['chrome', 'firefox']) {
     assert.match(await read(target, 'options.html'), /options\.js/);
