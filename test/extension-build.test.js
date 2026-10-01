@@ -1,0 +1,91 @@
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, readdir, rm, access } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { buildExtension, GECKO_ID } from '../scripts/build-extension.js';
+
+let outDir;
+const read = async (target, file) => readFile(join(outDir, target, file), 'utf8');
+const manifest = async (target) => JSON.parse(await read(target, 'manifest.json'));
+const exists = (file) => access(file).then(() => true, () => false);
+
+before(async () => {
+  outDir = await mkdtemp(join(tmpdir(), 'blp-ext-'));
+  await buildExtension({ outDir });
+});
+
+after(() => rm(outDir, { recursive: true, force: true }));
+
+test('o hook roda no mundo MAIN em document_start e a ponte no mundo isolado', async () => {
+  const { content_scripts: scripts } = await manifest('chrome');
+  const hook = scripts.find((s) => s.js.includes('page-hook.js'));
+  const bridge = scripts.find((s) => s.js.includes('content.js'));
+  assert.equal(hook.world, 'MAIN');
+  assert.equal(hook.run_at, 'document_start');
+  assert.equal(bridge.run_at, 'document_start');
+  assert.equal(bridge.world, undefined);
+  scripts.forEach((s) => assert.deepEqual(s.matches, ['https://baiakidle.com/jogar/*']));
+});
+
+test('permissões mínimas: só storage; firefox pede o site explicitamente', async () => {
+  for (const target of ['chrome', 'firefox']) {
+    const m = await manifest(target);
+    assert.deepEqual(m.permissions, ['storage']);
+    assert.equal(m.manifest_version, 3);
+  }
+  assert.equal((await manifest('chrome')).host_permissions, undefined);
+  assert.deepEqual((await manifest('firefox')).host_permissions, ['https://baiakidle.com/*']);
+});
+
+test('botão da barra existe e o background segue o formato de cada navegador', async () => {
+  const chrome = await manifest('chrome');
+  const firefox = await manifest('firefox');
+  assert.ok(chrome.action.default_title);
+  assert.deepEqual(chrome.background, { service_worker: 'background.js' });
+  assert.deepEqual(firefox.background, { scripts: ['background.js'] });
+});
+
+test('firefox declara id, versão mínima com world MAIN e nenhuma coleta de dados', async () => {
+  const { browser_specific_settings: gecko } = await manifest('firefox');
+  assert.equal(gecko.gecko.id, GECKO_ID);
+  assert.ok(parseInt(gecko.gecko.strict_min_version, 10) >= 128);
+  assert.deepEqual(gecko.gecko.data_collection_permissions, { required: ['none'] });
+  assert.equal((await manifest('chrome')).browser_specific_settings, undefined);
+});
+
+test('chrome usa URL dinâmica nos recursos expostos e firefox não', async () => {
+  assert.equal((await manifest('chrome')).web_accessible_resources[0].use_dynamic_url, true);
+  assert.equal((await manifest('firefox')).web_accessible_resources[0].use_dynamic_url, undefined);
+});
+
+test('todo arquivo referenciado pelo manifest existe no pacote', async () => {
+  for (const target of ['chrome', 'firefox']) {
+    const m = await manifest(target);
+    const files = [...m.content_scripts.flatMap((s) => s.js), 'background.js'];
+    for (const file of files) assert.ok(await exists(join(outDir, target, file)), `${target}/${file}`);
+  }
+});
+
+test('ícones dos itens vão empacotados dentro da extensão', async () => {
+  const icons = await readdir(join(outDir, 'chrome/img/items'));
+  assert.ok(icons.length > 800);
+  assert.ok(icons.every((f) => /^\d+\.png$/.test(f)));
+});
+
+test('nenhum bundle faz chamada de rede', async () => {
+  const forbidden = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|new\s+WebSocket|new\s+EventSource|importScripts|https?:\/\/(?!baiakidle\.com)/;
+  for (const target of ['chrome', 'firefox']) {
+    for (const file of ['page-hook.js', 'content.js', 'background.js']) {
+      assert.doesNotMatch(await read(target, file), forbidden, `${target}/${file}`);
+    }
+  }
+});
+
+test('bundles são ASCII puro, sem depender da decodificação do navegador', async () => {
+  for (const target of ['chrome', 'firefox']) {
+    for (const file of ['page-hook.js', 'content.js', 'background.js']) {
+      assert.doesNotMatch(await read(target, file), /[^\x00-\x7F]/, `${target}/${file}`);
+    }
+  }
+});

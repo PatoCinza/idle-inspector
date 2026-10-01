@@ -28,6 +28,19 @@ O coletor só lê o tráfego que o jogo já recebe. Ele mede:
 - charms que você tem, com tier e criatura atual (o script abre e fecha a janela de Charms);
 - progresso do Codex de domínio.
 
+## Extensão (Chrome e Firefox, em desenvolvimento)
+
+Mostra a tabela de drops ao vivo num overlay sobre o jogo, sem colar script no console e sem copiar código. Não envia nada a nenhum servidor: só lê o tráfego que o jogo já recebe. A única interação com a página é o botão "Ler party e charms".
+
+```sh
+npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
+```
+
+- Chrome: `chrome://extensions` → modo desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
+- Firefox (128+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
+
+O hook do WebSocket roda no mundo MAIN em `document_start` (`extension/page/hook.js`) e fala com o content script por `window.postMessage`. O estado da janela de medição fica em `storage.local`; ao recarregar a aba, o tempo e o progresso offline não entram na medição.
+
 ## Experimento A/B (ex.: Adrenaline Burst)
 
 Fica fora do site: é uma ferramenta de linha de comando que compara blocos de hunt com distribuições de charms diferentes.

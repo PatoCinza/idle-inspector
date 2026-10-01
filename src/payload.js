@@ -24,7 +24,7 @@ const charmsFromCards = (dataset, cards) => {
   };
 };
 
-const charmsFromSlots = (dataset, slots) => {
+export const charmsFromSlots = (dataset, slots) => {
   const known = dataset.charms
     .map((c) => ({ key: c.key, slot: slots[c.id] }))
     .filter((c) => c.slot);

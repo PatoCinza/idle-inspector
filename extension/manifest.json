@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Baiak Loot Planner",
+  "version": "0.1.0",
+  "description": "Tabela de drops ao vivo para o Baiak Idle. Ferramenta de fã, sem vínculo oficial. Não envia dados a nenhum servidor.",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://baiakidle.com/jogar/*"
+      ],
+      "js": [
+        "page-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://baiakidle.com/jogar/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "img/items/*.png"
+      ],
+      "matches": [
+        "https://baiakidle.com/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_title": "Baiak Loot Planner"
+  }
+}

@@ -1,0 +1,55 @@
+Master Sorcerer
+Nível
+956
+XP
+14.473.463.506
+Pontos de Vida
+5.544
+Mana
+37.669
+Capacidade
+3.864
+Tática
+nível 3 · 61%
+Experiência
+5%
+SKILLS (SOBEM POR USO — TREINE NO TREINO ONLINE)
+Magic
+124 +41
+Fist
+27 +10
+BÔNUS (ITENS + BUILD + PROFICIÊNCIA + CODEX + BOOSTS)
+Ataque
++8.154%
+Armadura
++4.042
+Chance de crítico
++24.472%
+Dano crítico
++153.534%
+Life Leech
++8.687%
+HP máximo
++4.588%
+Dano de magia
++115.579%
+XP
++37%
+Loot
++4%
+Onslaught (fatal)
++1.743%
+PROFICIÊNCIA (ARMA NA MÃO)
+Soultainter
+nível 7/9
+Chance de crítico
++1%
+Dano crítico
++20%
+ADDON (CONTA)
+Addon · Vida
++440
+STATS DOS ITENS
+Pair of dreamwalkers +3
+Loot
++4%
