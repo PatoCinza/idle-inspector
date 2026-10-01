@@ -1,4 +1,4 @@
-import { DEFAULT_PARTY, huntLoot, groupByItem, totals, creatures } from './model.js';
+import { DEFAULT_PARTY, huntLoot, groupByItem, totals, creatures, evenSplit } from './model.js';
 import { charmsFromSlots } from './payload.js';
 
 export const MIN_MINUTES = 2;
@@ -17,7 +17,7 @@ export const rates = (hunt, window) => Object.fromEntries(
     .map((key) => [key, perHour(window.kills[key] ?? 0, window.minutes)]),
 );
 
-const row = (dataset, window) => (group) => {
+const row = (dataset, loot) => (group) => {
   const creaturesOf = [...new Set(group.sources.map((s) => s.monster))];
   return {
     item: group.item,
@@ -27,30 +27,67 @@ const row = (dataset, window) => (group) => {
     perHour: group.count,
     valuePerHour: group.priced ? group.value : null,
     everyHours: group.count > 0 ? 1 / group.count : Infinity,
-    dropped: window.loot[group.item] ?? 0,
+    dropped: loot ? loot[group.item] ?? 0 : null,
     currency: group.currency,
   };
+};
+
+const dropsFor = ({ dataset, hunt, killsByMonster, roomsPerHour, party, charmSlots, bossRollsLoot, loot = null }) => {
+  const rows = huntLoot({
+    dataset,
+    hunt,
+    killsByMonster,
+    roomsPerHour,
+    lootPcts: lootPcts(party),
+    charms: charmSlots ? charmsFromSlots(dataset, charmSlots).assigned : {},
+    bossRollsLoot,
+  });
+  return { rows: groupByItem(rows).map(row(dataset, loot)), totals: totals(rows) };
 };
 
 export const dropsTable = ({ dataset, window, party = null, charmSlots = null, bossRollsLoot = true }) => {
   const hunt = findHunt(dataset, window);
   const ready = Boolean(hunt) && window.minutes >= MIN_MINUTES;
-  if (!ready) return { ready: false, hunt, minutes: window.minutes, rows: [], totals: null, partyRead: Boolean(party?.length) };
-  const rows = huntLoot({
-    dataset,
-    hunt,
-    killsByMonster: rates(hunt, window),
-    roomsPerHour: perHour(window.rooms, window.minutes),
-    lootPcts: lootPcts(party),
-    charms: charmSlots ? charmsFromSlots(dataset, charmSlots).assigned : {},
-    bossRollsLoot,
-  });
+  const partyRead = Boolean(party?.length);
+  if (!ready) return { ready: false, mode: 'measured', unit: 'hour', hunt, minutes: window.minutes, rows: [], totals: null, partyRead };
   return {
     ready: true,
+    mode: 'measured',
+    unit: 'hour',
     hunt,
     minutes: window.minutes,
-    rows: groupByItem(rows).map(row(dataset, window)),
-    totals: totals(rows),
-    partyRead: Boolean(party?.length),
+    ...dropsFor({
+      dataset,
+      hunt,
+      killsByMonster: rates(hunt, window),
+      roomsPerHour: perHour(window.rooms, window.minutes),
+      party,
+      charmSlots,
+      bossRollsLoot,
+      loot: window.loot,
+    }),
+    partyRead,
   };
 };
+
+const savedKills = (hunt, saved) => Object.fromEntries(creatures(hunt)
+  .filter((key) => hunt.monsters.includes(key) || saved.kills[key] != null)
+  .map((key) => [key, saved.kills[key] ?? 0]));
+
+export const plannedDropsTable = ({ dataset, hunt, saved = null, party = null, charmSlots = null, bossRollsLoot = true }) => ({
+  ready: true,
+  mode: saved ? 'saved' : 'perKill',
+  unit: saved ? 'hour' : 'kill',
+  hunt,
+  saved,
+  ...dropsFor({
+    dataset,
+    hunt,
+    killsByMonster: saved ? savedKills(hunt, saved) : evenSplit(hunt, 1),
+    roomsPerHour: saved ? saved.rooms : 0,
+    party,
+    charmSlots,
+    bossRollsLoot,
+  }),
+  partyRead: Boolean(party?.length),
+});

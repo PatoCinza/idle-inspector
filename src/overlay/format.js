@@ -33,3 +33,5 @@ export const formatMinutes = (minutes) => {
 };
 
 export const formatClock = (timestamp) => new Date(timestamp).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+
+export const formatDate = (timestamp) => new Date(timestamp).toLocaleString(LOCALE, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });

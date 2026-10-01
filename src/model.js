@@ -146,7 +146,7 @@ export const bestiaryPlan = ({ dataset, hunt, killsByMonster, current = {} }) =>
   return { monster: key, name: dataset.monsters[key]?.name ?? key, goal, have, remaining, hours: perHour > 0 ? remaining / perHour : Infinity };
 });
 
-const codexEntryId = (huntId, step) => (step === 0 ? `hunt-${huntId}` : `hunt-${huntId}-${step + 1}`);
+export const codexEntryId = (huntId, step) => (step === 0 ? `hunt-${huntId}` : `hunt-${huntId}-${step + 1}`);
 
 export const codexPlan = ({ dataset, hunt, perHour, progress = {} }) => {
   const base = dataset.codexHunts?.[hunt.id] ?? [];

@@ -1,15 +1,15 @@
-import { dropsTable } from '../../src/drops.js';
-import { windowOf } from '../../src/session.js';
-import { renderBody, nextSort, DEFAULT_SORT } from '../../src/overlay/view.js';
-import { bestiaryTable } from '../../src/bestiary.js';
-import { codexTable } from '../../src/codex.js';
+import { dropsTable, plannedDropsTable } from '../../src/drops.js';
+import { planFor } from '../../src/plan.js';
+import { renderBody, renderHuntPicker, nextSort, DEFAULT_SORT } from '../../src/overlay/view.js';
+import { bestiaryTable, planKillRates } from '../../src/bestiary.js';
+import { codexTable, codexSection } from '../../src/codex.js';
 import { charmTable } from '../../src/charm-plan.js';
-import { renderBestiary, renderCodex, renderCharms } from '../../src/overlay/plans-view.js';
+import { renderBestiary, renderCodex, renderCodexNav, renderCodexSection, renderCharms, UNREAD_CODEX } from '../../src/overlay/plans-view.js';
 import { STYLES } from '../../src/overlay/styles.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
-const ISOLATED_EVENTS = ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup', 'contextmenu'];
+const ISOLATED_EVENTS = ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'keyup', 'contextmenu', 'change', 'input'];
 
 const SHELL = `<style>${STYLES}</style>
 <section class="panel">
@@ -21,6 +21,7 @@ const SHELL = `<style>${STYLES}</style>
     </div>
   </header>
   <nav class="tabs"></nav>
+  <div class="planner"></div>
   <div class="body"></div>
 </section>`;
 
@@ -31,7 +32,9 @@ const TABS = [
   { id: 'charms', label: 'Charms' },
 ];
 
-export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'drops' });
+export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'drops', codexSection: 'hunt', plannedHunt: null });
+
+const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary']);
 
 export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, actions = {} }) => {
   let ui = { ...defaultUi(), ...stored };
@@ -74,37 +77,76 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     tabsNav.innerHTML = TABS.map(({ id, label }) => `<button class="tab${id === ui.tab ? ' active' : ''}" data-tab="${id}">${label}</button>`).join('');
   };
 
-  const dropsOf = (window) => dropsTable({ dataset, window, party: app.party?.members ?? null, charmSlots: app.charmSlots });
+  const planner = shadow.querySelector('.planner');
+  let plannerHtml = null;
+
+  const party = () => app.party?.members ?? null;
+
+  const dropsOf = (plan) => (plan.mode === 'saved' || plan.mode === 'perKill'
+    ? plannedDropsTable({ dataset, hunt: plan.hunt, saved: plan.mode === 'saved' ? plan.saved : null, party: party(), charmSlots: app.charmSlots })
+    : dropsTable({ dataset, window: plan.live, party: party(), charmSlots: app.charmSlots }));
+
+  const huntCodex = (plan) => {
+    const drops = dropsOf(plan);
+    const rows = drops.unit === 'hour' ? drops.rows : [];
+    const others = codexSection({ dataset, section: 'hunt', codex: app.codex, hunt: plan.hunt });
+    if (!plan.hunt) return renderCodexSection(others, dataset.rarities);
+    const detail = renderCodex(codexTable({ dataset, hunt: plan.hunt, rows, codex: app.codex }), { warnUnread: false });
+    return `${app.codex ? '' : UNREAD_CODEX}<div class="split">
+      <section class="pane major">${detail}</section>
+      <section class="pane minor">${renderCodexSection(others, dataset.rarities, { warnUnread: false })}</section>
+    </div>`;
+  };
 
   const views = {
-    drops: (window) => renderBody({
-      table: dropsOf(window),
-      window, sort: ui.sort, iconUrl, dataVersion: dataset.version, notice,
+    drops: (plan) => renderBody({
+      table: dropsOf(plan),
+      window: plan.live, sort: ui.sort, iconUrl, dataVersion: dataset.version, notice, measuring: plan.measuring,
     }),
-    codex: (window) => {
-      const drops = dropsOf(window);
-      return renderCodex(codexTable({ dataset, hunt: drops.hunt, rows: drops.rows, codex: app.codex }));
+    codex: (plan) => {
+      const section = ui.codexSection;
+      const content = section === 'hunt'
+        ? huntCodex(plan)
+        : renderCodexSection(codexSection({ dataset, section, codex: app.codex, hunt: plan.hunt }), dataset.rarities);
+      return renderCodexNav(section) + content;
     },
-    charms: (window) => renderCharms(charmTable({
+    charms: (plan) => renderCharms(charmTable({
       dataset,
-      window,
-      party: app.party?.members ?? null,
+      window: plan.live,
+      party: party(),
       charmSlots: app.charmSlots,
       charmStats: app.charmStats,
       procs: app.procs ?? null,
       combat: app.combat ?? null,
       bestiary: app.session.last?.bestiary ?? null,
     })),
-    bestiary: (window) => renderBestiary(bestiaryTable({ dataset, window, counts: app.session.last?.bestiary ?? null })),
+    bestiary: (plan) => renderBestiary(bestiaryTable({
+      dataset,
+      hunt: plan.hunt,
+      killsByMonster: plan.hunt ? planKillRates(plan) : null,
+      counts: app.bestiary ?? app.session.last?.bestiary ?? null,
+      mode: plan.mode,
+      saved: plan.saved,
+    })),
+  };
+
+  const renderPlanner = (plan) => {
+    const liveHunt = dataset.hunts.find((hunt) => hunt.id === plan.live.huntId) ?? null;
+    const html = PLANNER_TABS.has(ui.tab) ? renderHuntPicker({ hunts: dataset.hunts, selected: ui.plannedHunt, liveHunt }) : '';
+    if (html === plannerHtml) return;
+    plannerHtml = html;
+    planner.innerHTML = html;
   };
 
   const render = () => {
     if (!app) return;
-    const window = windowOf(app.session);
-    const scrollTop = shadow.querySelector('.scroll')?.scrollTop ?? 0;
+    const plan = planFor({ dataset, app, plannedHunt: ui.plannedHunt });
+    const scrollTop = shadow.querySelector('.body .scroll')?.scrollTop ?? 0;
     renderTabs();
-    body.innerHTML = (views[ui.tab] ?? views.drops)(window);
-    const scroll = shadow.querySelector('.scroll');
+    renderPlanner(plan);
+    panel.classList.toggle('fill', ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt));
+    body.innerHTML = (views[ui.tab] ?? views.drops)(plan);
+    const scroll = shadow.querySelector('.body .scroll');
     if (scroll) scroll.scrollTop = scrollTop;
   };
 
@@ -143,6 +185,12 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       render();
       return;
     }
+    const codexSectionId = event.target.closest('[data-codex]')?.dataset.codex;
+    if (codexSectionId) {
+      updateUi({ codexSection: codexSectionId });
+      render();
+      return;
+    }
     const sortKey = event.target.closest('[data-sort]')?.dataset.sort;
     if (sortKey) {
       updateUi({ sort: nextSort(ui.sort, sortKey) });
@@ -153,6 +201,11 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
   };
 
   shadow.addEventListener('click', onActivate);
+  shadow.addEventListener('change', (event) => {
+    if (!event.target.matches('[data-hunt]')) return;
+    updateUi({ plannedHunt: event.target.value || null });
+    render();
+  });
   shadow.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && event.target.closest('[data-sort]')) onActivate(event);
   });

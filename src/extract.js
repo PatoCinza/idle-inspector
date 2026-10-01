@@ -64,6 +64,9 @@ const ANCHORS = {
   radiantLoot: ['skyhold:6.46', '{'],
   codexHunts: ['"rottengolem-cave":[{item:', '{'],
   codexSteps: ['{suffix:"I",qty:1}', '['],
+  codexBosses: ['{id:"boss-ahau-1",cat:"boss"', '['],
+  codexGear: ['{id:"leather",name:"Leather",pieces:', '['],
+  rarities: ['{0:"Comum",1:"Incomum"', '{'],
   bossWave: ['boss:{hpMult:', '{'],
 };
 
@@ -102,6 +105,31 @@ const catalogIndex = (catalog) => ({
   equipment: Object.keys(catalog).filter((name) => catalog[name]?.slot && catalog[name].slot !== 'ammo'),
 });
 
+const codexReq = ({ item, qty, anyOf, tier, minTier, anyTier }) => ({
+  item,
+  qty,
+  ...(anyOf ? { anyOf } : {}),
+  ...(tier != null ? { tier } : {}),
+  ...(minTier != null ? { minTier } : {}),
+  ...(anyTier ? { anyTier: true } : {}),
+});
+
+export const bossCodex = (entries) => Object.values(entries.reduce((acc, { id, monster, mname, step, req }) => ({
+  ...acc,
+  [monster]: {
+    monster,
+    name: mname,
+    steps: [...(acc[monster]?.steps ?? []), { id, step, req: req.map(codexReq) }].sort((a, b) => a.step - b.step),
+  },
+}), {})).map(({ monster, name, steps }) => ({ monster, name, steps: steps.map(({ id, req }) => ({ id, req })) }));
+
+export const gearCodex = (sets) => sets.map(({ id, name, pieces }) => ({ id, name, pieces }));
+
+const codexItemNames = (bosses, gear) => [
+  ...bosses.flatMap((boss) => boss.steps.flatMap((step) => step.req.flatMap((req) => [req.item, ...(req.anyOf ?? [])]))),
+  ...gear.flatMap((set) => set.pieces),
+];
+
 const huntMonsterKeys = (hunts) => new Set(hunts.flatMap((h) => [...h.monsters, h.bossKey].filter(Boolean)));
 
 const mergePrices = (prices, values, names) => Object.fromEntries(
@@ -131,7 +159,13 @@ export const extractDataset = (src, { version = null } = {}) => {
   );
   const lootNames = new Set(Object.values(monsters).flatMap((m) => m.loot.map((l) => l.name)));
   const codexHunts = read('codexHunts');
-  const itemNames = new Set([...lootNames, ...Object.values(codexHunts).flat().map((entry) => entry.item)]);
+  const codexBosses = bossCodex(read('codexBosses'));
+  const codexGear = gearCodex(read('codexGear'));
+  const itemNames = new Set([
+    ...lootNames,
+    ...Object.values(codexHunts).flat().map((entry) => entry.item),
+    ...codexItemNames(codexBosses, codexGear),
+  ]);
   const charms = read('charms').map(({ id, key, name, category, kind, element, chance, desc }) =>
     ({ id, key, name, category, kind, element, chance, desc }));
   return {
@@ -147,6 +181,9 @@ export const extractDataset = (src, { version = null } = {}) => {
     itemIds: Object.fromEntries([...itemNames].map((name) => [name, catalog.idOf(name)]).filter(([, id]) => id != null)),
     codexHunts,
     codexSteps: read('codexSteps'),
+    codexBosses,
+    codexGear,
+    rarities: Object.entries(read('rarities')).sort(([a], [b]) => Number(a) - Number(b)).map(([, name]) => name),
     bossWave: read('bossWave').boss,
   };
 };

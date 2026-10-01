@@ -1,18 +1,16 @@
 import { bestiaryPlan, creatures } from './model.js';
-import { findHunt, MIN_MINUTES } from './drops.js';
+import { perHour } from './drops.js';
 
-const killsPerHour = (window) => Object.fromEntries(
-  Object.entries(window.kills).map(([key, count]) => [key, (count * 60) / window.minutes]),
-);
+export const planKillRates = (plan) => {
+  if (plan.mode === 'measured') {
+    return Object.fromEntries(Object.entries(plan.live.kills).map(([key, count]) => [key, perHour(count, plan.live.minutes)]));
+  }
+  return plan.mode === 'saved' ? plan.saved.kills : null;
+};
 
-export const bestiaryTable = ({ dataset, window, counts }) => {
-  const hunt = findHunt(dataset, window);
+export const bestiaryTable = ({ dataset, hunt, killsByMonster = null, counts, mode = null, saved = null }) => {
   if (!hunt) return { ready: false, hunt: null, rows: [], counted: Boolean(counts) };
-  const rows = bestiaryPlan({
-    dataset,
-    hunt,
-    killsByMonster: window.minutes >= MIN_MINUTES ? killsPerHour(window) : {},
-    current: counts ?? {},
-  }).filter((row) => creatures(hunt).includes(row.monster));
-  return { ready: true, hunt, rows, counted: Boolean(counts) };
+  const rows = bestiaryPlan({ dataset, hunt, killsByMonster: killsByMonster ?? {}, current: counts ?? {} })
+    .filter((row) => creatures(hunt).includes(row.monster));
+  return { ready: true, hunt, rows, counted: Boolean(counts), mode, saved, timed: Boolean(killsByMonster) };
 };

@@ -1,5 +1,5 @@
 import { MIN_MINUTES } from '../drops.js';
-import { formatCount, formatInteger, formatGold, formatPercent, formatDuration, formatMinutes, formatClock } from './format.js';
+import { formatCount, formatInteger, formatGold, formatPercent, formatDuration, formatMinutes, formatClock, formatDate } from './format.js';
 
 const ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (char) => ENTITIES[char]);
@@ -14,11 +14,13 @@ export const COLUMNS = [
   { key: 'item', label: 'Item', defaultDir: 1 },
   { key: 'creatures', label: 'Criaturas', sortable: false },
   { key: 'chance', label: 'Chance/kill', defaultDir: -1, numeric: true },
-  { key: 'perHour', label: 'Drops/h', defaultDir: -1, numeric: true },
-  { key: 'valuePerHour', label: 'Valor/h', defaultDir: -1, numeric: true },
+  { key: 'perHour', label: { hour: 'Drops/h', kill: 'Drops/kill' }, defaultDir: -1, numeric: true },
+  { key: 'valuePerHour', label: { hour: 'Valor/h', kill: 'Valor/kill' }, defaultDir: -1, numeric: true },
   { key: 'everyHours', label: '1 a cada', defaultDir: 1, numeric: true },
   { key: 'dropped', label: 'Caiu', defaultDir: -1, numeric: true },
 ];
+
+const labelOf = (column, unit) => (typeof column.label === 'string' ? column.label : column.label[unit]);
 
 export const DEFAULT_SORT = { key: 'valuePerHour', dir: -1 };
 
@@ -45,24 +47,29 @@ const icon = (row, iconUrl) => {
 
 const cell = (value, numeric, extra = '') => `<td class="${numeric ? 'n' : ''}${extra}">${value}</td>`;
 
-const renderRow = (row, iconUrl) => `<tr>
+const EVERY = {
+  hour: formatDuration,
+  kill: (kills) => (Number.isFinite(kills) ? `${formatCount(kills)} kills` : '—'),
+};
+
+const renderRow = (iconUrl, unit) => (row) => `<tr>
   <td class="item">${icon(row, iconUrl)}<span>${escapeHtml(row.item)}</span></td>
   <td class="creatures">${escapeHtml(row.creatures.join(', '))}</td>
   ${cell(formatPercent(row.chance), true)}
   ${cell(formatCount(row.perHour), true)}
   ${cell(row.valuePerHour === null ? '—' : formatGold(row.valuePerHour), true)}
-  ${cell(formatDuration(row.everyHours), true)}
-  ${cell(formatInteger(row.dropped), true, row.dropped ? '' : ' dim')}
+  ${cell(EVERY[unit](row.everyHours), true)}
+  ${cell(row.dropped === null ? '—' : formatInteger(row.dropped), true, row.dropped ? '' : ' dim')}
 </tr>`;
 
-const renderHead = (sort) => COLUMNS.map((column) => {
+const renderHead = (sort, unit) => COLUMNS.map((column) => {
   const active = column.key === sort.key;
   const arrow = active ? (sort.dir > 0 ? ' ▲' : ' ▼') : '';
   const attrs = column.sortable === false ? '' : ` data-sort="${column.key}" tabindex="0" role="button"`;
-  return `<th class="${column.numeric ? 'n' : ''}${active ? ' active' : ''}"${attrs}>${column.label}${arrow}</th>`;
+  return `<th class="${column.numeric ? 'n' : ''}${active ? ' active' : ''}"${attrs}>${labelOf(column, unit)}${arrow}</th>`;
 }).join('');
 
-const statusLine = (table, window) => {
+const liveStatus = (table, window) => {
   const parts = [
     table.hunt?.name ?? 'Hunt não identificada',
     formatMinutes(window.minutes),
@@ -73,23 +80,55 @@ const statusLine = (table, window) => {
   return `<div class="status"><span>${parts.map(escapeHtml).join(' · ')}</span><span class="since">${escapeHtml(since)}</span></div>`;
 };
 
+const plannedStatus = (table) => {
+  const killsPerHour = (saved) => Object.values(saved.kills).reduce((a, b) => a + b, 0);
+  const detail = table.mode === 'saved'
+    ? `última medição: ${formatMinutes(table.saved.minutes)} em ${formatDate(table.saved.t)} · ${formatInteger(killsPerHour(table.saved))} kills/h`
+    : 'nunca medida: valores por kill, criaturas em proporção igual';
+  return `<div class="status"><span>${escapeHtml(`${table.hunt.name} · ${detail}`)}</span></div>`;
+};
+
 const waiting = (table, window) => {
+  if (!table.hunt) return 'Nenhuma hunt em andamento. Escolha uma hunt acima para ver os drops pela tabela.';
   if (window.minutes <= 0) return 'Aguardando dados do jogo. A medição começa na próxima atualização do servidor.';
-  if (!table.hunt) return 'Ainda não identifiquei a hunt. Ela aparece quando a primeira kill for registrada.';
   return `Medindo… a tabela aparece com ${MIN_MINUTES} min de dados (${formatMinutes(window.minutes)} até agora).`;
 };
 
+const FOOT = {
+  hour: 'Chance/kill é a da tabela, antes dos bônus. Drops/h inclui o bônus de cada membro da party e a Gut equipada.',
+  kill: 'Sem medição desta hunt: drops e valor por kill, com as criaturas em proporção igual e sem o boss. Depois de 2 min caçando nela, a última medição passa a valer aqui.',
+};
+
+const UNIT = { hour: '/h', kill: '/kill' };
+
 const notes = (table, dataVersion) => [
   table.partyRead ? '' : '<p class="warn">Bônus de loot da party não lido: usando 0%.</p>',
-  table.totals ? `<p class="total">Total: ${formatGold(table.totals.total)}/h · itens ${formatGold(table.totals.items)} · moedas ${formatGold(table.totals.currency)}</p>` : '',
-  `<p class="foot">Chance/kill é a da tabela, antes dos bônus. Drops/h inclui o bônus de cada membro da party e a Gut equipada. Dados do jogo: ${escapeHtml(dataVersion)}.</p>`,
+  table.totals ? `<p class="total">Total: ${formatGold(table.totals.total)}${UNIT[table.unit]} · itens ${formatGold(table.totals.items)} · moedas ${formatGold(table.totals.currency)}</p>` : '',
+  `<p class="foot">${FOOT[table.unit]} Dados do jogo: ${escapeHtml(dataVersion)}.</p>`,
 ].join('');
 
 const renderNotice = (notice) => (notice ? `<p class="notice ${notice.ok ? 'ok' : 'warn'}">${escapeHtml(notice.message)}</p>` : '');
 
-export const renderBody = ({ table, window, sort = DEFAULT_SORT, iconUrl, dataVersion = '', notice = null }) => {
+const measuringNote = (measuring, window) => (measuring
+  ? `<p class="status">${escapeHtml(`Medindo esta hunt agora: ${formatMinutes(window.minutes)} de ${MIN_MINUTES} min.`)}</p>`
+  : '');
+
+const huntOption = (selected) => (hunt) => `<option value="${escapeHtml(hunt.id)}"${hunt.id === selected ? ' selected' : ''}>${escapeHtml(`${hunt.name} (lvl ${hunt.minLevel ?? 0})`)}</option>`;
+
+export const renderHuntPicker = ({ hunts, selected, liveHunt }) => {
+  const sorted = [...hunts].sort((a, b) => (a.minLevel ?? 0) - (b.minLevel ?? 0) || a.name.localeCompare(b.name, 'pt-BR'));
+  const current = liveHunt ? `Hunt atual (${liveHunt.name})` : 'Hunt atual';
+  return `<label class="picker">Planejar: <select data-hunt>
+    <option value=""${selected ? '' : ' selected'}>${escapeHtml(current)}</option>
+    ${sorted.map(huntOption(selected)).join('')}
+  </select></label>`;
+};
+
+export const renderBody = ({ table, window, sort = DEFAULT_SORT, iconUrl, dataVersion = '', notice = null, measuring = false }) => {
+  const live = table.mode === 'measured';
   const content = table.ready
-    ? `<div class="scroll"><table><thead><tr>${renderHead(sort)}</tr></thead><tbody>${sortRows(table.rows, sort).map((row) => renderRow(row, iconUrl)).join('')}</tbody></table></div>`
+    ? `<div class="scroll"><table><thead><tr>${renderHead(sort, table.unit)}</tr></thead><tbody>${sortRows(table.rows, sort).map(renderRow(iconUrl, table.unit)).join('')}</tbody></table></div>`
     : `<p class="waiting">${escapeHtml(waiting(table, window))}</p>`;
-  return `${statusLine(table, window)}${renderNotice(notice)}${content}${notes(table, dataVersion)}`;
+  const status = live || !table.hunt ? liveStatus(table, window) : plannedStatus(table);
+  return `${status}${live ? '' : measuringNote(measuring, window)}${renderNotice(notice)}${content}${table.ready ? notes(table, dataVersion) : ''}`;
 };

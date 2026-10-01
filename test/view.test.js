@@ -57,7 +57,7 @@ test('aviso de party não lida aparece só quando falta a leitura', () => {
 
 test('sem dados suficientes mostra o motivo em vez da tabela', () => {
   const empty = { huntId: null, minutes: 0, kills: {}, rooms: 0, loot: {}, since: null };
-  assert.ok(renderBody({ table: dropsTable({ dataset, window: empty }), window: empty, iconUrl }).includes('Aguardando dados'));
+  assert.ok(renderBody({ table: dropsTable({ dataset, window: empty }), window: empty, iconUrl }).includes('Nenhuma hunt em andamento'));
   const short = { ...window, minutes: 0.5 };
   const html = renderBody({ table: dropsTable({ dataset, window: short, party }), window: short, iconUrl });
   assert.ok(html.includes('Medindo'));

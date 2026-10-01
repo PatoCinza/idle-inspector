@@ -41,7 +41,11 @@ npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 
 O hook do WebSocket roda no mundo MAIN em `document_start` (`extension/page/hook.js`) e fala com o content script por `window.postMessage`. O estado da janela de medição fica em `storage.local`; ao recarregar a aba, o tempo e o progresso offline não entram na medição.
 
-O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) e cada golpe da party (`combatlog`: dano, crítico e criatura atingida). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico e bônus de loot de cada membro e as cartas da janela de Charms.
+Ao abrir o jogo, a medição salva só aparece quando o jogo confirmar que você está na mesma hunt (uma kill das criaturas dela ou uma sala concluída). Treinando ou em outra hunt, o overlay começa vazio. Cada hunt medida por 2 min ou mais guarda o seu último ritmo de kills.
+
+O seletor "Planejar" (abas Drops, Bestiário e Codex) escolhe qualquer hunt. No Bestiário, mostra as kills que você já tem de cada criatura dela e o tempo que falta pelo ritmo ao vivo ou pela última medição. Sem medição ao vivo dela, os drops/h usam o último ritmo salvo; se a hunt nunca foi medida, a tabela mostra drops e valor por kill, com as criaturas em proporção igual. No Codex, a hunt escolhida destaca as linhas de Hunts, Bosses e Equipamento cuja etapa atual pede um item que ela dropa. Os bosses do Codex são os bosses de sala; o boss da onda 10/10 rola a tabela da criatura dele e não dropa nada especial.
+
+O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico e bônus de loot de cada membro e as cartas da janela de Charms.
 
 ## Experimento A/B (ex.: Adrenaline Burst)
 
@@ -135,11 +139,11 @@ Na calibração, as moedas bateram em 1,00× e os itens unitários ficaram dentr
 - **Antes de haver combate medido, o golpe médio é estimado** (3,2× o level); a calibração compensa parte do erro.
 - **Golpe médio e crítico medidos incluem os procs de charm**, que aparecem no `combatlog` como golpes sem crítico. Isso puxa a fração do dano em crítico um pouco para baixo (os procs são poucos por cento do dano).
 - **Procs elementais ainda são multiplicados pelo crítico do painel**, mas no `combatlog` eles nunca critam. O fator de procs (×1,11) foi ajustado com essa suposição e precisa ser medido de novo.
-- **Codex:** só o Codex de domínio da hunt. Os de boss e de equipamento ainda não entram.
+- **Codex de boss e de equipamento** mostram só o progresso e o que falta entregar, sem tempo estimado: as lutas de boss não são medidas e a raridade das drops de equipamento não está no modelo.
 - **Hunts limitadas pelo spawn** não ganham kills/h com mais dano.
 
 ## Próximos passos (v2)
 
 - Charms defensivos (Parry, Dodge) usando o dano recebido. A Adrenaline entra pelo A/B.
-- Codex de boss e de equipamento.
+- Tempo estimado no Codex de boss (loot do boss × lutas/h) e de equipamento (chance de raridade das drops).
 - Calibrar a quantidade dos itens empilháveis com mais sessões.

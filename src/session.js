@@ -1,6 +1,6 @@
 const EMPTY_TOTALS = { ms: 0, kills: {}, rooms: {}, loot: {} };
 
-export const initialSession = () => ({ huntId: null, since: null, totals: EMPTY_TOTALS, first: null, last: null });
+export const initialSession = () => ({ huntId: null, since: null, totals: EMPTY_TOTALS, first: null, last: null, connectedAt: null });
 
 const isRoomKey = (key) => key.startsWith('h:');
 const isMonsterKey = (key) => !isRoomKey(key) && key !== 'bp';
@@ -57,6 +57,7 @@ const lootWentDown = (from, to) => Object.keys(from ?? {}).some((key) => (to[key
 const restart = (session, { reason, t, loot, huntId = session.huntId }) => {
   const last = session.last && loot ? { ...session.last, loot } : session.last;
   return {
+    ...session,
     huntId,
     since: { reason, t },
     totals: EMPTY_TOTALS,
@@ -85,8 +86,14 @@ const onSnapshot = (session, { t, bestiary, loot }) => {
 
 const onReset = (session, { t, reason, loot, huntId }) => restart(session, { reason, t, loot, huntId });
 
-const onConnect = (session) => ({ ...session, totals: measure(session), first: null, last: null });
+const onConnect = (session, { t }) => ({ ...session, totals: measure(session), first: null, last: null, connectedAt: t });
 
 const HANDLERS = { snapshot: onSnapshot, reset: onReset, connect: onConnect };
 
 export const reduceSession = (session, event) => (HANDLERS[event.type] ?? (() => session))(session, event);
+
+export const segmentOf = (session) => measureSegment(session.first, session.last);
+
+export const isLive = (session) => session.connectedAt == null
+  || (session.since?.t ?? -Infinity) >= session.connectedAt
+  || (session.huntId != null && huntOf(segmentOf(session).rooms) === session.huntId);
