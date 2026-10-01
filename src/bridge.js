@@ -5,7 +5,7 @@ export const STORAGE_KEY = 'blp.app';
 
 const defaultSchedule = (task) => setTimeout(task, 1000);
 
-export const createBridge = ({ win, storage, now = Date.now, schedule = defaultSchedule, onChange = () => {} }) => {
+export const createBridge = ({ win, storage, now = Date.now, schedule = defaultSchedule, onChange = () => {}, reduce = reduceApp }) => {
   let app = null;
   let queued = [];
   let saving = false;
@@ -22,7 +22,7 @@ export const createBridge = ({ win, storage, now = Date.now, schedule = defaultS
   };
 
   const apply = (event) => {
-    app = reduceApp(app, event);
+    app = reduce(app, event);
     onChange(app);
     requestSave();
   };
@@ -38,7 +38,7 @@ export const createBridge = ({ win, storage, now = Date.now, schedule = defaultS
   });
 
   const ready = storage.get(STORAGE_KEY).catch(() => undefined).then((stored) => {
-    app = reduceApp(restoreApp(stored), { type: 'connect', t: now() });
+    app = reduce(restoreApp(stored), { type: 'connect', t: now() });
     onChange(app);
     const pending = queued;
     queued = [];

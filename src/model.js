@@ -9,7 +9,7 @@ export const FLAT_ROLL = new Set(['bag you desire', 'bag you covet', 'primal bag
 
 export const isCurrency = (name) => name in CURRENCY;
 
-const rollsOncePerKill = (name) => isCurrency(name) || FLAT_ROLL.has(name);
+export const rollsOncePerKill = (name) => isCurrency(name) || FLAT_ROLL.has(name);
 
 export const unitValue = (dataset, name) => CURRENCY[name] ?? dataset.prices[name] ?? 0;
 
@@ -35,15 +35,16 @@ export const monsterLoot = (dataset, monsterKey) => {
 
 export const partyLootFactor = (lootPcts) => sum(lootPcts.map((pct) => 1 + pct / 100));
 
-export const dropChance = (chance, lootPcts, gut) =>
-  Math.min(1, (chance / CHANCE_SCALE) * partyLootFactor(lootPcts) * (1 + gut));
+export const factoredChance = (chance, factor) => Math.min(1, (chance / CHANCE_SCALE) * factor);
 
-export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY, gut = 0, scavenge = 0 }) =>
+export const dropChance = (chance, lootPcts, gut) => factoredChance(chance, partyLootFactor(lootPcts) * (1 + gut));
+
+export const killChance = (entry, factor) => (rollsOncePerKill(entry.name) ? entry.chance / CHANCE_SCALE : factoredChance(entry.chance, factor));
+
+export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY, gut = 0, scavenge = 0, quantities = {} }) =>
   monsterLoot(dataset, monsterKey).map((entry) => {
     const currency = isCurrency(entry.name);
-    const perKill = rollsOncePerKill(entry.name)
-      ? (entry.chance / CHANCE_SCALE) * averageQuantity(entry)
-      : dropChance(entry.chance, lootPcts, gut) * averageQuantity(entry);
+    const perKill = killChance(entry, partyLootFactor(lootPcts) * (1 + gut)) * (quantities[entry.name] ?? averageQuantity(entry));
     const value = unitValue(dataset, entry.name) * (currency ? 1 + scavenge : 1);
     return {
       monster: monsterKey,
@@ -68,7 +69,7 @@ export const lootKills = ({ hunt, killsByMonster, roomsPerHour = 0, bossRollsLoo
 export const evenSplit = (hunt, killsPerHour) =>
   Object.fromEntries(hunt.monsters.map((key) => [key, killsPerHour / hunt.monsters.length]));
 
-export const huntLoot = ({ dataset, hunt, killsByMonster, roomsPerHour = 0, lootPcts, charms = {}, bossRollsLoot }) => {
+export const huntLoot = ({ dataset, hunt, killsByMonster, roomsPerHour = 0, lootPcts, charms = {}, bossRollsLoot, quantities = {} }) => {
   const kills = lootKills({ hunt, killsByMonster, roomsPerHour, bossRollsLoot });
   const tierOf = (charmKey, monsterKey) =>
     charms[charmKey]?.monster === monsterKey ? charmValue(dataset, charmKey, charms[charmKey].tier ?? 3) : 0;
@@ -79,6 +80,7 @@ export const huntLoot = ({ dataset, hunt, killsByMonster, roomsPerHour = 0, loot
     lootPcts,
     gut: tierOf('gut', key),
     scavenge: tierOf('scavenge', key),
+    quantities: quantities[key],
   }));
 };
 
@@ -118,12 +120,12 @@ const lootAssignments = (keys, available) => {
   ];
 };
 
-export const charmPlans = ({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned = { gut: 3, scavenge: 3 }, bossRollsLoot }) => {
+export const charmPlans = ({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned = { gut: 3, scavenge: 3 }, bossRollsLoot, quantities = {} }) => {
   const available = LOOT_CHARMS.filter((key) => owned[key]).map((key) => ({ key, tier: owned[key] }));
-  const base = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, bossRollsLoot })).total;
+  const base = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, bossRollsLoot, quantities })).total;
   return lootAssignments(creatures(hunt), available)
     .map((charms) => {
-      const total = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, charms, bossRollsLoot })).total;
+      const total = totals(huntLoot({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, charms, bossRollsLoot, quantities })).total;
       return { charms, gut: charms.gut?.monster ?? null, scavenge: charms.scavenge?.monster ?? null, total, gain: total - base };
     })
     .sort(byDesc('total'));

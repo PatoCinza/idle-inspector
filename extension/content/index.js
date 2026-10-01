@@ -1,5 +1,6 @@
 import dataset from '../../data/game.json';
 import { createBridge } from '../../src/bridge.js';
+import { reduceApp } from '../../src/app-state.js';
 import { extensionStorage } from './storage.js';
 import { mountOverlay } from './overlay.js';
 import { readParty, readCharmCards } from '../../src/dom/reader.js';
@@ -32,6 +33,7 @@ const readPartyAndCharms = async () => {
 const bridge = createBridge({
   win: window,
   storage: extensionStorage,
+  reduce: (app, event) => reduceApp(app, event, { dataset }),
   onChange: (app) => overlay.then((mounted) => mounted.update(app)),
 });
 

@@ -1,4 +1,5 @@
 import { escapeHtml } from './view.js';
+import { MIN_QUANTITY_DROPS } from '../drop-log.js';
 import { formatCount, formatInteger, formatGold, formatPercent, formatDuration, formatDate } from './format.js';
 
 const meter = (have, goal) => `<span class="meter"><span style="width:${goal ? Math.min(100, (have / goal) * 100) : 0}%"></span></span>`;
@@ -200,4 +201,52 @@ export const renderCharms = (table) => {
       </table>
     </div>
     <p class="foot">Dano calibrado com ${escapeHtml(table.calibration.source ?? 'uma medição de referência')} (procs ×${formatCount(table.calibration.proc)}, crítico ×${formatCount(table.calibration.crit)}, Fatal Hold ×${formatCount(table.calibration.fatal)}). Dano na hunt ${table.damageMeasured ? 'medido no combate' : 'estimado pelo HP das kills'}. Major só entra em criatura com o bestiário completo. Gut e Scavenge são escolhidos primeiro pelo loot.</p>`;
+};
+
+const SAMPLE_STATUS = {
+  ok: '<span class="pill good">ok</span>',
+  above: '<span class="warn">acima</span>',
+  below: '<span class="warn">abaixo</span>',
+  quantity: '<span class="warn">qtd. acima do máx.</span>',
+  unlisted: '<span class="warn">fora da tabela</span>',
+  empty: '<span class="dim">—</span>',
+};
+
+const percentOrDash = (value) => (value === null ? '—' : formatPercent(value));
+
+const range = (low, high) => (low === high ? formatInteger(low) : `${formatInteger(low)}–${formatInteger(high)}`);
+
+const measuredQuantity = (row) => (row.quantity.mean === null
+  ? '—'
+  : `${formatCount(row.quantity.mean)} <span class="dim">(${range(row.quantity.min, row.quantity.max)})</span>${row.usesMeasuredQuantity ? ' <span class="pill good">em uso</span>' : ''}`);
+
+const sampleRow = (row) => `<tr class="${row.drops ? '' : 'dim'}">
+  <td>${escapeHtml(row.item)}</td>
+  <td class="n">${percentOrDash(row.predicted)}</td>
+  <td class="n">${percentOrDash(row.measured)}</td>
+  <td class="n">${row.interval ? `${formatPercent(row.interval[0])}–${formatPercent(row.interval[1])}` : '—'}</td>
+  <td class="n">${formatInteger(row.drops)}</td>
+  <td class="n">${row.listed ? `${formatCount(row.predictedQuantity)} <span class="dim">(${range(1, row.tableMax)})</span>` : '—'}</td>
+  <td class="n">${measuredQuantity(row)}</td>
+  <td>${SAMPLE_STATUS[row.status]}</td>
+</tr>`;
+
+const creatureHeading = (creature) => [
+  creature.name,
+  `${formatInteger(creature.kills)} kills isoladas`,
+  creature.factor === null ? null : `bônus da party ×${formatCount(creature.factor)}`,
+].filter(Boolean).join(' · ');
+
+const sampleCreature = (creature) => `<h3>${escapeHtml(creatureHeading(creature))}</h3>${creature.kills
+  ? `<table>
+    <thead><tr><th>Item</th><th class="n">Prevista</th><th class="n">Medida</th><th class="n">IC 95%</th><th class="n">Drops</th><th class="n">Qtd. tabela</th><th class="n">Qtd. medida</th><th>Status</th></tr></thead>
+    <tbody>${creature.rows.map(sampleRow).join('')}</tbody>
+  </table>`
+  : '<p class="waiting">Nenhuma kill isolada desta criatura ainda.</p>'}`;
+
+export const renderSample = (table) => {
+  if (!table.ready) return '<p class="waiting">Nenhuma hunt em andamento. Escolha uma hunt acima para ver a amostra de drops dela.</p>';
+  return `<p class="status">${escapeHtml(`${table.hunt.name} · ${formatInteger(table.kills)} kills isoladas na amostra`)}</p>
+    <div class="scroll plans">${table.creatures.map(sampleCreature).join('')}</div>
+    <p class="foot">A amostra usa só as kills isoladas (atualização do servidor com uma kill só): cada item que aumentou no Loot Analyser é um drop dela. Prevista: chance da tabela × bônus da party (soma de 1 + bônus de loot de cada membro) × (1 + Gut), até 100%; moedas e bags sem bônus. Acima ou abaixo: a prevista fica fora do intervalo de 95% da medida. Com ${MIN_QUANTITY_DROPS} drops ou mais, a quantidade medida substitui a média da tabela nas abas Drops e Charms. A amostra fica no navegador, soma todas as sessões e não zera com o Hunt Analyzer.</p>`;
 };

@@ -4,7 +4,8 @@ import { renderBody, renderHuntPicker, nextSort, DEFAULT_SORT } from '../../src/
 import { bestiaryTable, planKillRates } from '../../src/bestiary.js';
 import { codexTable, codexSection } from '../../src/codex.js';
 import { charmTable } from '../../src/charm-plan.js';
-import { renderBestiary, renderCodex, renderCodexNav, renderCodexSection, renderCharms, UNREAD_CODEX } from '../../src/overlay/plans-view.js';
+import { renderBestiary, renderCodex, renderCodexNav, renderCodexSection, renderCharms, renderSample, UNREAD_CODEX } from '../../src/overlay/plans-view.js';
+import { sampleTable, measuredQuantities } from '../../src/drop-log.js';
 import { STYLES } from '../../src/overlay/styles.js';
 
 const RENDER_DELAY_MS = 500;
@@ -30,11 +31,12 @@ const TABS = [
   { id: 'bestiary', label: 'Bestiário' },
   { id: 'codex', label: 'Codex' },
   { id: 'charms', label: 'Charms' },
+  { id: 'sample', label: 'Amostra' },
 ];
 
 export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'drops', codexSection: 'hunt', plannedHunt: null });
 
-const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary']);
+const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary', 'sample']);
 
 export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, actions = {} }) => {
   let ui = { ...defaultUi(), ...stored };
@@ -81,10 +83,11 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
   let plannerHtml = null;
 
   const party = () => app.party?.members ?? null;
+  const quantities = () => measuredQuantities(app.dropLog);
 
   const dropsOf = (plan) => (plan.mode === 'saved' || plan.mode === 'perKill'
-    ? plannedDropsTable({ dataset, hunt: plan.hunt, saved: plan.mode === 'saved' ? plan.saved : null, party: party(), charmSlots: app.charmSlots })
-    : dropsTable({ dataset, window: plan.live, party: party(), charmSlots: app.charmSlots }));
+    ? plannedDropsTable({ dataset, hunt: plan.hunt, saved: plan.mode === 'saved' ? plan.saved : null, party: party(), charmSlots: app.charmSlots, quantities: quantities() })
+    : dropsTable({ dataset, window: plan.live, party: party(), charmSlots: app.charmSlots, quantities: quantities() }));
 
   const huntCodex = (plan) => {
     const drops = dropsOf(plan);
@@ -119,6 +122,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       procs: app.procs ?? null,
       combat: app.combat ?? null,
       bestiary: app.session.last?.bestiary ?? null,
+      quantities: quantities(),
     })),
     bestiary: (plan) => renderBestiary(bestiaryTable({
       dataset,
@@ -128,6 +132,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       mode: plan.mode,
       saved: plan.saved,
     })),
+    sample: (plan) => renderSample(sampleTable({ dataset, hunt: plan.hunt, log: app.dropLog })),
   };
 
   const renderPlanner = (plan) => {

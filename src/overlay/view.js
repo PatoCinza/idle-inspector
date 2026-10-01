@@ -95,16 +95,20 @@ const waiting = (table, window) => {
 };
 
 const FOOT = {
-  hour: 'Chance/kill é a da tabela, antes dos bônus. Drops/h inclui o bônus de cada membro da party e a Gut equipada.',
+  hour: 'Chance/kill é a da tabela, antes dos bônus. Drops/h usa um sorteio por kill para a party: a chance da tabela × a soma de (1 + bônus de loot) de cada membro × (1 + Gut), até 100%.',
   kill: 'Sem medição desta hunt: drops e valor por kill, com as criaturas em proporção igual e sem o boss. Depois de 2 min caçando nela, a última medição passa a valer aqui.',
 };
 
 const UNIT = { hour: '/h', kill: '/kill' };
 
+const measuredNote = (count) => (count
+  ? ` Quantidade medida (aba Amostra) em ${formatInteger(count)} ${count === 1 ? 'item' : 'itens'}; nos outros, a média entre 1 e o máximo da tabela.`
+  : '');
+
 const notes = (table, dataVersion) => [
   table.partyRead ? '' : '<p class="warn">Bônus de loot da party não lido: usando 0%.</p>',
   table.totals ? `<p class="total">Total: ${formatGold(table.totals.total)}${UNIT[table.unit]} · itens ${formatGold(table.totals.items)} · moedas ${formatGold(table.totals.currency)}</p>` : '',
-  `<p class="foot">${FOOT[table.unit]} Dados do jogo: ${escapeHtml(dataVersion)}.</p>`,
+  `<p class="foot">${FOOT[table.unit]}${measuredNote(table.measuredQuantities)} Dados do jogo: ${escapeHtml(dataVersion)}.</p>`,
 ].join('');
 
 const renderNotice = (notice) => (notice ? `<p class="notice ${notice.ok ? 'ok' : 'warn'}">${escapeHtml(notice.message)}</p>` : '');

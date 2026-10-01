@@ -43,7 +43,9 @@ O hook do WebSocket roda no mundo MAIN em `document_start` (`extension/page/hook
 
 Ao abrir o jogo, a medição salva só aparece quando o jogo confirmar que você está na mesma hunt (uma kill das criaturas dela ou uma sala concluída). Treinando ou em outra hunt, o overlay começa vazio. Cada hunt medida por 2 min ou mais guarda o seu último ritmo de kills.
 
-O seletor "Planejar" (abas Drops, Bestiário e Codex) escolhe qualquer hunt. No Bestiário, mostra as kills que você já tem de cada criatura dela e o tempo que falta pelo ritmo ao vivo ou pela última medição. Sem medição ao vivo dela, os drops/h usam o último ritmo salvo; se a hunt nunca foi medida, a tabela mostra drops e valor por kill, com as criaturas em proporção igual. No Codex, a hunt escolhida destaca as linhas de Hunts, Bosses e Equipamento cuja etapa atual pede um item que ela dropa. Os bosses do Codex são os bosses de sala; o boss da onda 10/10 rola a tabela da criatura dele e não dropa nada especial.
+O seletor "Planejar" (abas Drops, Bestiário, Codex e Amostra) escolhe qualquer hunt. No Bestiário, mostra as kills que você já tem de cada criatura dela e o tempo que falta pelo ritmo ao vivo ou pela última medição. Sem medição ao vivo dela, os drops/h usam o último ritmo salvo; se a hunt nunca foi medida, a tabela mostra drops e valor por kill, com as criaturas em proporção igual. No Codex, a hunt escolhida destaca as linhas de Hunts, Bosses e Equipamento cuja etapa atual pede um item que ela dropa. Os bosses do Codex são os bosses de sala; o boss da onda 10/10 rola a tabela da criatura dele e não dropa nada especial.
+
+A aba Amostra guarda, no navegador, cada kill isolada (uma atualização do servidor com uma kill só): quantas kills de cada criatura, quantas vezes cada item caiu e em que quantidade. Ela compara a chance medida com a prevista (intervalo de 95%) e marca quantidade acima do máximo ou item fora da tabela. Com 30 drops ou mais de um item, a quantidade medida substitui a média da tabela nas abas Drops e Charms. A amostra soma todas as sessões e não zera com o Hunt Analyzer.
 
 O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico e bônus de loot de cada membro e as cartas da janela de Charms.
 
@@ -95,6 +97,7 @@ npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.mi
 | `src/model.js` | Modelo de loot em funções puras: drops/h, valor por monstro, planos de Gut/Scavenge, bestiário |
 | `src/charms.js` | Plano de charms: majors de dano por criatura, Gut/Scavenge pelo loot, Fatal Hold na criatura que sobra |
 | `src/avatar.js` | Tempo em avatar de cada membro a partir do `procstats` |
+| `src/drop-log.js` | Amostra local de drops: kills isoladas por criatura, chance e quantidade medidas × previstas |
 | `src/combat.js` | Agrega o `combatlog`: dano, golpes e críticos por vocação, dano por criatura |
 | `src/payload.js` | Decodifica o código do coletor em entradas do modelo |
 | `src/collector.js` | Script de console |
@@ -147,4 +150,4 @@ Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro
 
 - Charms defensivos (Parry, Dodge) usando o dano recebido. A Adrenaline entra pelo A/B.
 - Tempo estimado no Codex de boss (loot do boss × lutas/h) e de equipamento (chance de raridade das drops).
-- Distribuições locais de drop por criatura e item, medidas kill a kill. O conteúdo das bags fica para quando houver uma para abrir.
+- Conteúdo das bags (o `useitem` enviado e o que volta), quando houver uma para abrir.

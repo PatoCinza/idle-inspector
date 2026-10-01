@@ -39,7 +39,7 @@ const requirements = ({ hunt, window, party, charmSlots }) => {
   return null;
 };
 
-export const charmTable = ({ dataset, window, party: readParty, charmSlots, charmStats, procs = null, combat = null, bestiary, bossRollsLoot = true }) => {
+export const charmTable = ({ dataset, window, party: readParty, charmSlots, charmStats, procs = null, combat = null, bestiary, bossRollsLoot = true, quantities = {} }) => {
   const party = withCombat(withAvatar(readParty, procs), combat);
   const hunt = findHunt(dataset, window);
   const missing = requirements({ hunt, window, party, charmSlots });
@@ -54,6 +54,7 @@ export const charmTable = ({ dataset, window, party: readParty, charmSlots, char
     dealtPerHour: dealtPerHour({ dataset, hunt, combat, minutes: window.minutes }),
     lootPcts: lootPcts(party),
     bossRollsLoot,
+    quantities,
   };
   const measured = measuredCharms({ ...common, charmStats, assigned });
   const fallbackHit = partyAvgHit(measured);

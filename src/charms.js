@@ -200,7 +200,7 @@ const unlockGain = (keys, options, key, base) => {
   return pick ? { charm: pick.charm, huntGain: unlocked.score - base.score } : null;
 };
 
-export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, lootPcts, party, owned, bossRollsLoot, bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
+export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, lootPcts, party, owned, bossRollsLoot, quantities = {}, bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
   const keys = creatures(hunt);
   const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour });
   const members = normalizeParty(party, fallbackHit);
@@ -217,7 +217,7 @@ export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPe
   const majorKeys = keys.filter((k) => !locks[k]);
   const majorPick = bestAssignment(majorKeys, majors);
 
-  const lootPlans = charmPlans({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned, bossRollsLoot });
+  const lootPlans = charmPlans({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, owned, bossRollsLoot, quantities });
   const [loot] = lootPlans;
   const lootMonsters = new Set(Object.values(loot.charms).map((c) => c.monster));
   const damageMinors = withGains(ownedOf('minor').filter((c) => DAMAGE_MINORS.has(c.key)));

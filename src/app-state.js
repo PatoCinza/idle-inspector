@@ -1,10 +1,13 @@
 import { initialSession, reduceSession, windowOf, isLive } from './session.js';
 import { savedRates } from './plan.js';
 import { mergeCombat } from './combat.js';
+import { lootPcts } from './drops.js';
+import { partyLootFactor } from './model.js';
+import { initialDropLog, observeSnapshot, disarm, gutOn } from './drop-log.js';
 
 export const APP_VERSION = 1;
 
-export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, huntRates: {}, bestiary: null });
+export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, huntRates: {}, bestiary: null, dropLog: initialDropLog() });
 
 const SESSION_EVENTS = new Set(['snapshot', 'reset', 'connect']);
 
@@ -15,8 +18,20 @@ const trackedCodex = (codex) => ({
   prog: Object.fromEntries(Object.entries(codex.prog ?? {}).filter(([id]) => CODEX_ENTRY.test(id))),
 });
 
-export const reduceApp = (app, event) => {
+const lootFactorOf = (app, dataset) => (monster) => partyLootFactor(lootPcts(app.party?.members))
+  * (1 + (dataset ? gutOn(dataset, app.charmSlots, monster) : 0));
+
+const logOf = (app) => app.dropLog ?? initialDropLog();
+
+const DROP_LOG = {
+  snapshot: (app, event, { dataset }) => observeSnapshot(logOf(app), app.session.last, event, lootFactorOf(app, dataset)),
+  reset: (app) => disarm(logOf(app)),
+  connect: (app) => disarm(logOf(app)),
+};
+
+export const reduceApp = (app, event, env = {}) => {
   if (SESSION_EVENTS.has(event.type)) {
+    const dropLog = DROP_LOG[event.type](app, event, env);
     const session = reduceSession(app.session, event);
     const window = windowOf(session);
     const rates = isLive(session) ? savedRates(window, event.t) : null;
@@ -26,6 +41,7 @@ export const reduceApp = (app, event) => {
       combat: session.since === app.session.since ? app.combat ?? null : null,
       huntRates: rates ? { ...app.huntRates, [window.huntId]: rates } : app.huntRates ?? {},
       bestiary: event.bestiary ?? app.bestiary ?? null,
+      dropLog,
     };
   }
   if (event.type === 'combat') return { ...app, combat: mergeCombat(app.combat, event.combat) };
@@ -37,4 +53,4 @@ export const reduceApp = (app, event) => {
   return app;
 };
 
-export const restoreApp = (stored) => (stored?.v === APP_VERSION ? stored : initialApp());
+export const restoreApp = (stored) => (stored?.v === APP_VERSION ? { ...initialApp(), ...stored } : initialApp());
