@@ -14,7 +14,15 @@ const CORS = {
   'Access-Control-Max-Age': '86400',
 };
 
-const reply = (status, body = null) => new Response(body, { status, headers: CORS });
+const reply = (status, body = null, headers = {}) => new Response(body, { status, headers: { ...CORS, ...headers } });
+
+const RATE_LIMITED = { 'Retry-After': '60' };
+
+const withinRateLimit = (request, env) => {
+  if (!env?.PER_IP) return Promise.resolve(true);
+  const key = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  return env.PER_IP.limit({ key }).then(({ success }) => success, () => true);
+};
 
 const parse = (text) => {
   try {
@@ -105,7 +113,8 @@ const reject = (ctx, status, rejection) => {
   return reply(status);
 };
 
-const forward = async (request, ctx) => {
+const forward = async (request, env, ctx) => {
+  if (!(await withinRateLimit(request, env))) return reply(429, null, RATE_LIMITED);
   const { chunks, bytes, truncated } = await readCapped(request.body);
   const text = await new Blob(chunks).text();
   if (truncated) {
@@ -128,6 +137,6 @@ const ROUTES = {
 export default {
   fetch: (request, env, ctx) => {
     if (new URL(request.url).pathname !== PATH) return reply(404);
-    return (ROUTES[request.method] ?? (() => reply(405)))(request, ctx);
+    return (ROUTES[request.method] ?? (() => reply(405)))(request, env, ctx);
   },
 };

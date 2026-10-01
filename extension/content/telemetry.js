@@ -1,4 +1,5 @@
 import { buildEvents, emptyUsage, countUsage, initialCursor, KEYS, FLUSH_MS } from '../../src/telemetry.js';
+import { advancesCursor } from '../../src/posthog.js';
 
 export const startTelemetry = ({ api, storage, dataset }) => {
   let usage = emptyUsage();
@@ -12,7 +13,7 @@ export const startTelemetry = ({ api, storage, dataset }) => {
     const built = buildEvents({ dataset, app, cursor, usage });
     if (!built.events.length) return;
     const response = await send(built.events);
-    if (!response || (response.consent && !response.ok)) return;
+    if (!advancesCursor(response)) return;
     usage = emptyUsage();
     await storage.set({ [KEYS.cursor]: built.cursor }).catch(() => {});
   };

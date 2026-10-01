@@ -55,7 +55,7 @@ O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patch
 
 Desligados por padrão. O overlay pergunta uma vez; o botão "Dados" e a página de opções da extensão mostram o que é enviado e ligam ou desligam o envio. No Firefox 140+, a opção usa a permissão de coleta de dados do próprio navegador (`technicalAndInteraction`, opcional), que também aparece na instalação. Nos outros navegadores, fica salva em `storage.local`.
 
-Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de medição e ao fechar a aba, pelo background, para `https://us.i.posthog.com/batch/`:
+Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de medição e ao fechar a aba, pelo background, para o relay (`https://blp-vega.gabriel-luis-cinza.workers.dev/v1/punk`), que repassa ao PostHog:
 
 - `blp_usage`: quantas vezes cada aba foi aberta e quantas vezes o seletor "Planejar", o botão "Ler party e charms", o seletor de lucro/XP e a página de opções foram usados.
 - `blp_hunt_window`: uma por janela de medição, reenviada quando ela avança. Leva:
@@ -67,15 +67,15 @@ Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de 
   - XP/h, dano causado e recebido por criatura e gasto do Supply Analyser.
 - `blp_drop_sample`: o que entrou na aba Amostra desde o último envio, por criatura: kills isoladas e fator de bônus. Vai um registro para cada item da tabela da criatura, inclusive os que não caíram, com drops, quantidades, chance prevista, quantidade média prevista e máximo da tabela; itens fora da tabela vão marcados com `unlisted`.
 
-Cada evento leva um identificador aleatório da instalação (`crypto.randomUUID()`, sem relação com a conta), `$process_person_profile: false` (sem perfil de pessoa) e `$geoip_disable: true`. Nunca vão nomes de personagens, de party ou de guild, login nem IDs do jogo. No projeto do PostHog, deixe a captura de IP desligada (Settings → Project → IP data capture). O conteúdo das bags ainda não é coletado.
+Cada evento leva um identificador aleatório da instalação (`crypto.randomUUID()`, sem relação com a conta), `$process_person_profile: false` (sem perfil de pessoa) e `$geoip_disable: true`. Nunca vão nomes de personagens, de party ou de guild, login nem IDs do jogo. O envio passa pelo relay (abaixo), que não repassa o IP do jogador; o PostHog vê o IP da Cloudflare, e o projeto descarta IPs (Settings → Project → IP data capture, desligada; mantenha assim). A Cloudflare recebe a conexão, como qualquer servidor, mas o Worker só usa o IP como chave do limite por minuto e não o grava. O conteúdo das bags ainda não é coletado.
 
 ### Relay (Cloudflare Worker)
 
 O Firefox no modo rigoroso e os bloqueadores barram `us.i.posthog.com`. O `relay/worker.js` é um Cloudflare Worker gratuito que recebe o lote em `/v1/punk` e repassa para o PostHog. Ele só aceita a chave deste projeto e lotes no formato da extensão (até 500 eventos `blp_*`, com `distinct_id`, `timestamp`, `$process_person_profile: false` e `$geoip_disable: true`), recusa corpo acima de 1 MB e não repassa cabeçalhos do jogador, então o PostHog vê o IP da Cloudflare, não o de quem joga. Um lote com a chave do projeto que for recusado (grande demais ou fora do formato) vira um evento `blp_relay_rejected` com o motivo, o tamanho, os nomes dos eventos, a instalação e a versão. O pior lote possível (todas as criaturas do jogo com amostra pendente e 500 salas na janela) fica em torno de 760 KB, e um teste falha se ele passar de 900 KB.
 
-Deploy pelo painel: dash.cloudflare.com → Workers & Pages → Create → Hello World → nome `blp-vega` → Deploy → Edit code → cole o `relay/worker.js` → Deploy. Ou, com o Node: `cd relay && npx wrangler login && npx wrangler deploy`.
+Deploy: `cd relay && npx wrangler login && npx wrangler deploy`. Use o wrangler, não o editor do painel: o limite por IP (binding `PER_IP`, 30 requisições por minuto, no `wrangler.toml`) só se configura por ele. Colado no painel sem o binding, o Worker funciona, mas sem limite. Acima do limite, responde 429 com `Retry-After: 60`, e a extensão reenvia depois. No plano gratuito são 100 mil requisições por dia (zera à 0h UTC); passando disso, o `workers.dev` responde com erro 1027 e a extensão guarda o lote até a cota voltar.
 
-Depois, troque `POSTHOG.ingestUrl` em `src/posthog.js` pela URL do Worker com `/v1/punk` (por exemplo `https://blp-vega.<sua-conta>.workers.dev/v1/punk`). O build tira dali a `host_permissions`.
+A URL do Worker fica em `POSTHOG.ingestUrl` (`src/posthog.js`). O manifest não pede permissão para esse host: o background envia como `text/plain`, sem preflight, e o Worker responde CORS `*`. Recusas definitivas do relay (400, 403 e 413) descartam o lote e o cursor avança; falha de rede, 429 e 5xx guardam o lote para o próximo envio.
 
 ## Experimento A/B (ex.: Adrenaline Burst)
 

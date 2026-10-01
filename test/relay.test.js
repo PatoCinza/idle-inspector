@@ -19,6 +19,7 @@ beforeEach(() => {
   calls = [];
   pending = [];
   upstreamFails = false;
+  env = {};
   globalThis.fetch = async (url, init) => {
     calls.push({ url, init, body: JSON.parse(init.body) });
     if (upstreamFails) throw new TypeError('network');
@@ -30,7 +31,22 @@ afterEach(() => { globalThis.fetch = realFetch; });
 
 const ctx = { waitUntil: (promise) => pending.push(promise) };
 const settled = () => Promise.all(pending);
-const call = (request) => relay.fetch(request, {}, ctx);
+let env = {};
+const call = (request) => relay.fetch(request, env, ctx);
+
+const limiter = ({ limit, fails = false }) => {
+  const counts = {};
+  const keys = [];
+  return {
+    keys,
+    limit: async ({ key }) => {
+      if (fails) throw new Error('indisponível');
+      keys.push(key);
+      counts[key] = (counts[key] ?? 0) + 1;
+      return { success: counts[key] <= limit };
+    },
+  };
+};
 
 const validBody = (events = [{ event: 'blp_usage', properties: { tabs: {} } }]) => batchOf({ events, installId: 'install-1', version: '0.1.0', now: 0 });
 
@@ -130,4 +146,29 @@ test('preflight responde 204 com CORS em cache', async () => {
   assert.equal(response.status, 204);
   assert.equal(response.headers.get('Access-Control-Allow-Methods'), 'POST, OPTIONS');
   assert.equal(response.headers.get('Access-Control-Max-Age'), '86400');
+});
+
+test('limita requisições por IP e responde 429 com Retry-After, sem chamar o PostHog', async () => {
+  env = { PER_IP: limiter({ limit: 2 }) };
+  const from = (ip) => post(validBody(), { headers: { 'CF-Connecting-IP': ip } }).then((response) => [response.status, response.headers.get('Retry-After'), response.headers.get('Access-Control-Allow-Origin')]);
+  const statuses = [];
+  for (const ip of ['198.51.100.1', '198.51.100.1', '198.51.100.1', '198.51.100.2']) statuses.push(await from(ip));
+  assert.deepEqual(statuses.map(([status]) => status), [200, 200, 429, 200]);
+  assert.deepEqual(statuses[2].slice(1), ['60', '*']);
+  assert.deepEqual(env.PER_IP.keys, ['198.51.100.1', '198.51.100.1', '198.51.100.1', '198.51.100.2']);
+  await settled();
+  assert.equal(calls.length, 3);
+});
+
+test('sem o binding ou com ele fora do ar, o relay continua repassando', async () => {
+  assert.equal((await post(validBody())).status, 200);
+  env = { PER_IP: limiter({ limit: 0, fails: true }) };
+  assert.equal((await post(validBody())).status, 200);
+});
+
+test('preflight e outros caminhos não gastam o limite', async () => {
+  env = { PER_IP: limiter({ limit: 0 }) };
+  assert.equal((await request('OPTIONS')).status, 204);
+  assert.equal((await post(validBody(), { path: '/e' })).status, 404);
+  assert.deepEqual(env.PER_IP.keys, []);
 });

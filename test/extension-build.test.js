@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildExtension, GECKO_ID } from '../scripts/build-extension.js';
-import { POSTHOG, ingestPermission } from '../src/posthog.js';
+import { POSTHOG } from '../src/posthog.js';
 
 let outDir;
 const read = async (target, file) => readFile(join(outDir, target, file), 'utf8');
@@ -29,7 +29,7 @@ test('o hook roda no mundo MAIN em document_start e a ponte no mundo isolado', a
   scripts.forEach((s) => assert.deepEqual(s.matches, ['https://baiakidle.com/jogar/*']));
 });
 
-test('permissões mínimas: storage e o host de envio; firefox pede o site do jogo explicitamente', async () => {
+test('permissões mínimas: storage, sem host de envio (o relay responde CORS); firefox pede o site do jogo explicitamente', async () => {
   for (const target of ['chrome', 'firefox']) {
     const m = await manifest(target);
     assert.deepEqual(m.permissions, ['storage']);
@@ -37,8 +37,8 @@ test('permissões mínimas: storage e o host de envio; firefox pede o site do jo
     assert.deepEqual(m.options_ui, { page: 'options.html', open_in_tab: true });
     assert.ok(m.description.length <= 132);
   }
-  assert.deepEqual((await manifest('chrome')).host_permissions, [ingestPermission()]);
-  assert.deepEqual((await manifest('firefox')).host_permissions, ['https://baiakidle.com/*', ingestPermission()]);
+  assert.equal((await manifest('chrome')).host_permissions, undefined);
+  assert.deepEqual((await manifest('firefox')).host_permissions, ['https://baiakidle.com/*']);
 });
 
 test('página de opções é empacotada', async () => {
@@ -83,7 +83,7 @@ test('ícones dos itens vão empacotados dentro da extensão', async () => {
   assert.ok(icons.every((f) => /^\d+\.png$/.test(f)));
 });
 
-test('só o background faz chamada de rede, e só para o PostHog', async () => {
+test('só o background faz chamada de rede, e só para o relay', async () => {
   const forbidden = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|new\s+WebSocket|new\s+EventSource|importScripts|https?:\/\/(?!baiakidle\.com)/;
   const ingestHost = new URL(POSTHOG.ingestUrl).host.replace(/\./g, '\\.');
   const otherHosts = new RegExp(`XMLHttpRequest|sendBeacon|new\\s+WebSocket|new\\s+EventSource|importScripts|https?:\\/\\/(?!baiakidle\\.com|${ingestHost})`);

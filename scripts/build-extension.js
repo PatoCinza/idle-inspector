@@ -1,7 +1,6 @@
 import { build } from 'esbuild';
 import { readFile, writeFile, mkdir, readdir, copyFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { ingestPermission } from '../src/posthog.js';
 
 const root = new URL('../', import.meta.url);
 const path = (relative) => fileURLToPath(new URL(relative, root));
@@ -23,14 +22,13 @@ export const TARGETS = {
   chrome: (manifest) => ({
     ...manifest,
     minimum_chrome_version: '111',
-    host_permissions: [ingestPermission()],
     background: { service_worker: 'background.js' },
     web_accessible_resources: manifest.web_accessible_resources.map(withDynamicUrl),
   }),
   firefox: (manifest) => ({
     ...manifest,
     background: { scripts: ['background.js'] },
-    host_permissions: ['https://baiakidle.com/*', ingestPermission()],
+    host_permissions: ['https://baiakidle.com/*'],
     browser_specific_settings: {
       gecko: {
         id: GECKO_ID,

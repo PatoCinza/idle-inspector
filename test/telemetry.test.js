@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildEvents, emptyUsage, countUsage, initialCursor, anonymousMember, batchOf, POSTHOG, MAX_PHASES } from '../src/telemetry.js';
 import { initialApp, reduceApp } from '../src/app-state.js';
+import { DELIVERY, KEYS, deliveryOf, advancesCursor } from '../src/posthog.js';
+import { startTelemetry } from '../extension/content/telemetry.js';
 
 const dataset = JSON.parse(readFileSync(new URL('../data/game.json', import.meta.url)));
 const MIN = 60000;
@@ -89,6 +91,14 @@ test('lote do PostHog é anônimo, sem perfil e sem GeoIP', () => {
   assert.equal(body.batch[0].timestamp, '2026-10-01T00:00:00.000Z');
 });
 
+test('a identidade vai antes das propriedades, para o relay achar a instalação num lote cortado, e não pode ser sobrescrita', () => {
+  const events = [{ event: 'blp_hunt_window', properties: { pad: 'x', distinct_id: 'outro', $process_person_profile: true } }];
+  const [{ properties }] = batchOf({ events, installId: 'abc', version: '0.2.0', now: 0 }).batch;
+  assert.deepEqual(Object.keys(properties).slice(0, 2), ['distinct_id', 'app_version']);
+  assert.equal(properties.distinct_id, 'abc');
+  assert.equal(properties.$process_person_profile, false);
+});
+
 test('cada sala leva os charms equipados quando ela terminou, para o A/B', () => {
   const adrenalineId = idOf('adrenaline_burst');
   const app = [
@@ -117,4 +127,35 @@ test('o pior lote possível cabe no limite de 1 MB do relay', () => {
   const body = JSON.stringify(batchOf({ events, installId: crypto.randomUUID(), version: '10.10.10', now: Date.now() }));
   assert.equal(events.length, Object.keys(dataset.monsters).length + 2);
   assert.ok(Buffer.byteLength(body) < RELAY_MAX_BYTES * 0.9, `${Buffer.byteLength(body)} bytes`);
+});
+
+test('recusas definitivas do relay descartam o lote; rede, 429 e 5xx reenviam', () => {
+  assert.deepEqual([200, 204, 400, 403, 413, 404, 429, 500, 502, null].map(deliveryOf), [
+    DELIVERY.sent, DELIVERY.sent, DELIVERY.dropped, DELIVERY.dropped, DELIVERY.dropped,
+    DELIVERY.retry, DELIVERY.retry, DELIVERY.retry, DELIVERY.retry, DELIVERY.retry,
+  ]);
+  assert.deepEqual([DELIVERY.sent, DELIVERY.dropped, DELIVERY.noConsent, DELIVERY.retry, undefined].map((delivery) => advancesCursor({ delivery })), [true, true, true, false, false]);
+  assert.equal(advancesCursor(null), false);
+  assert.equal(advancesCursor({ ok: false }), false);
+});
+
+test('o cursor só avança quando o background dá o lote por encerrado', async () => {
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  try {
+    const flushWith = async (response) => {
+      const stored = {};
+      const storage = { get: async (key) => stored[key], set: async (values) => Object.assign(stored, values) };
+      const api = { runtime: { sendMessage: async () => response } };
+      await startTelemetry({ api, storage, dataset }).flush(hunting());
+      return stored[KEYS.cursor] !== undefined;
+    };
+    const advanced = await Promise.all([
+      { delivery: DELIVERY.sent }, { delivery: DELIVERY.dropped }, { delivery: DELIVERY.noConsent },
+      { delivery: DELIVERY.retry }, { ok: false }, undefined,
+    ].map(flushWith));
+    assert.deepEqual(advanced, [true, true, true, false, false, false]);
+  } finally {
+    globalThis.setInterval = realSetInterval;
+  }
 });
