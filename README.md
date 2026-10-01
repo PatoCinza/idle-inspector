@@ -39,6 +39,8 @@ npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 - Chrome: `chrome://extensions` → modo desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
 - Firefox (128+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
 
+A aba Início, que abre na primeira vez, mostra uma lista dos primeiros passos com o que já está pronto (jogo conectado, hunt identificada, 2 min de medição, party, charms, combate e Codex) e explica cada aba e cada botão.
+
 O hook do WebSocket roda no mundo MAIN em `document_start` (`extension/page/hook.js`) e fala com o content script por `window.postMessage`. O estado da janela de medição fica em `storage.local`; ao recarregar a aba, o tempo e o progresso offline não entram na medição.
 
 Ao abrir o jogo, a medição salva só aparece quando o jogo confirmar que você está na mesma hunt (uma kill das criaturas dela ou uma sala concluída). Treinando ou em outra hunt, o overlay começa vazio. Cada hunt medida por 2 min ou mais guarda o seu último ritmo de kills.

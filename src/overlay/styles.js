@@ -84,4 +84,18 @@ tr.deliverable td:first-child { box-shadow: inset 3px 0 0 #7fd39a; }
 .status-pill { margin-left: 8px; font-weight: 400; color: #c7c8d1; }
 tr.bottleneck { background: rgba(242, 198, 107, 0.1); }
 .foot { margin: 0; color: #8d8f9c; font-size: 11px; }
+.welcome { padding: 4px 8px 8px; }
+.welcome p { margin: 4px 8px; }
+.welcome .foot { margin: 8px; }
+.checklist, .controls { margin: 4px 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.controls { padding-left: 16px; list-style: disc; }
+.checklist li { display: flex; gap: 8px; align-items: baseline; }
+.checklist .mark { width: 12px; flex: none; text-align: center; }
+.checklist .done .mark { color: #7fd39a; }
+.checklist .todo .mark { color: #e7b75a; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 4px 8px; }
+.card { border: 1px solid #2c2e38; border-radius: 6px; padding: 6px 8px; background: #1a1c23; }
+.card h4 { margin: 0 0 2px; font-size: 12px; }
+.card p { margin: 2px 0; }
+.ghost.inline { padding: 0 6px; color: #f2c66b; }
 `;

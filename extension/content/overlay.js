@@ -8,6 +8,7 @@ import { renderBestiary, renderCodex, renderCodexNav, renderCodexSection, render
 import { sampleTable, measuredQuantities } from '../../src/drop-log.js';
 import { skippedItems } from '../../src/model.js';
 import { STYLES } from '../../src/overlay/styles.js';
+import { renderWelcome, welcomeChecklist } from '../../src/overlay/welcome-view.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
@@ -30,6 +31,7 @@ const SHELL = `<style>${STYLES}</style>
 </section>`;
 
 const TABS = [
+  { id: 'welcome', label: 'Início' },
   { id: 'drops', label: 'Drops' },
   { id: 'bestiary', label: 'Bestiário' },
   { id: 'codex', label: 'Codex' },
@@ -37,7 +39,7 @@ const TABS = [
   { id: 'sample', label: 'Amostra' },
 ];
 
-export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'drops', codexSection: 'hunt', plannedHunt: null, charmObjective: 'profit' });
+export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'welcome', codexSection: 'hunt', plannedHunt: null, charmObjective: 'profit' });
 
 const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary', 'sample']);
 
@@ -147,6 +149,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       mode: plan.mode,
       saved: plan.saved,
     })),
+    welcome: (plan) => renderWelcome({ checklist: welcomeChecklist({ dataset, app, plan }) }),
     sample: (plan) => renderSample(sampleTable({ dataset, hunt: plan.hunt, log: app.dropLog, skipped: skipped() })),
   };
 
