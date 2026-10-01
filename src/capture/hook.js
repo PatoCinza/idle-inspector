@@ -1,6 +1,6 @@
 import { parseFrame, parseMessage } from './frames.js';
 import { procsFromStats } from '../avatar.js';
-import { combatFromLog, mergeCombat, isEmptyCombat } from '../combat.js';
+import { combatFromLog, mergeCombat, hasCombat } from '../combat.js';
 
 const ROOM_DATA = 13;
 const ANALYZER_PANELS = new Set(['hunt', 'loot']);
@@ -21,7 +21,7 @@ const INCOMING = {
     : []),
   combatlog: (payload) => {
     const combat = combatFromLog(payload);
-    return isEmptyCombat(combat) ? [] : [{ type: 'combat', combat }];
+    return hasCombat(combat) ? [{ type: 'combat', combat }] : [];
   },
 };
 
