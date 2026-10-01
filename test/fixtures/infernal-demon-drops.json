@@ -1,0 +1,90 @@
+{
+  "note": "Sessão real na hunt Infernal Demon (party de 3), coletada pelo WebSocket em 01/10/2026: 15 min, 271 patches com Δ de bestiário e loot. kills e ultimateHealthPotion somam todos os patches; singleKill só os patches com uma kill (Δ de cada item = um drop).",
+  "kills": {
+    "infernal_phantom": 148,
+    "infernal_demon": 167,
+    "brachiodemon": 125
+  },
+  "ultimateHealthPotion": 1196,
+  "singleKill": {
+    "infernal_phantom": {
+      "kills": 67,
+      "ultimateHealthPotion": {
+        "1": 20,
+        "2": 16,
+        "3": 14,
+        "4": 17
+      },
+      "items": {
+        "crystal coin": 67,
+        "terra rod": 67,
+        "hailstorm rod": 33,
+        "chaos mace": 6,
+        "wand of voodoo": 8,
+        "springsprout rod": 15,
+        "infernal robe": 10,
+        "wand of starstorm": 14,
+        "titan axe": 10,
+        "glorious axe": 8,
+        "war axe": 6,
+        "infernal heart": 13,
+        "fire axe": 7,
+        "underworld rod": 11,
+        "warrior's axe": 4,
+        "crystal mace": 3
+      }
+    },
+    "infernal_demon": {
+      "kills": 52,
+      "ultimateHealthPotion": {
+        "1": 7,
+        "2": 8,
+        "3": 12,
+        "4": 13,
+        "5": 12
+      },
+      "items": {
+        "crystal coin": 52,
+        "gold ingot": 47,
+        "red crystal fragment": 16,
+        "small diamond": 8,
+        "green crystal fragment": 6,
+        "blue crystal shard": 16,
+        "cyan crystal fragment": 17,
+        "blue gem": 13,
+        "war axe": 10,
+        "magma amulet": 11,
+        "stone skin amulet": 3,
+        "mercenary sword": 9,
+        "onyx chip": 10,
+        "magma boots": 4,
+        "giant sword": 5
+      }
+    },
+    "brachiodemon": {
+      "kills": 52,
+      "ultimateHealthPotion": {
+        "1": 16,
+        "2": 16,
+        "3": 6,
+        "4": 14
+      },
+      "items": {
+        "crystal coin": 48,
+        "jade hammer": 3,
+        "noble axe": 4,
+        "royal helmet": 2,
+        "hand": 16,
+        "ring of green plasma": 6,
+        "head": 7,
+        "diabolic skull": 4,
+        "spellbook of mind control": 4,
+        "alloy legs": 2,
+        "epee": 7,
+        "assassin dagger": 1,
+        "skull staff": 1,
+        "crystalline sword": 1
+      }
+    }
+  }
+}

@@ -102,19 +102,20 @@ npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.mi
 | `scripts/compare.js` | CLI do A/B |
 | `scripts/fetch-images.js` | Baixa os ícones dos itens |
 | `site/` | Template, estilos e app do site |
-| `test/` | Testes com `node:test`, incluindo a calibração com a sessão do Rotten Golem |
+| `test/` | Testes com `node:test`, incluindo a calibração com as sessões do Rotten Golem e do Infernal Demon |
 
 ## Modelo de loot
 
-Validado com 72 minutos de hunt no Rotten Golem (2.181 kills, party de 3):
+Validado com 72 minutos de hunt no Rotten Golem (2.181 kills, party de 3) e 15 minutos no Infernal Demon (440 kills, party de 3, kill a kill pelos patches de estado):
 
-- **Itens:** cada membro da party faz o próprio sorteio, com a chance da tabela × (1 + bônus de loot dele) × (1 + Gut). A chance de cada sorteio fica limitada a 100%.
+- **Itens:** um sorteio por kill para a party toda, com a chance da tabela × a soma de (1 + bônus de loot) de cada membro × (1 + Gut). A chance fica limitada a 100% e o excedente se perde: na Infernal, a terra rod (52,8% na tabela) caiu em todas as kills do Infernal Phantom, sempre 1 unidade.
+- **Empilháveis:** quando caem, a quantidade é uniforme entre 1 e o máximo da tabela. Na Infernal, a ultimate health potion nunca veio zerada nem acima do máximo em 171 kills isoladas.
 - **Moedas:** um sorteio por kill, sem party, sem bônus de loot e sem Gut. A Scavenge multiplica o valor das moedas daquele monstro.
 - **Bags** (bag you desire, bag you covet, primal bag): um sorteio por kill, sem bônus de loot e sem Gut, pela chance da tabela do monstro.
 - **Monstros com multiplicador especial** (maggots, darklight, radiant): usa a mesma regra do cliente, com teto de 90% e o excedente virando quantidade.
 - **Boss da sala:** conta como kill da criatura dele e, por padrão, rola a mesma tabela. Há uma opção no site para desligar isso.
 
-Na calibração, as moedas bateram em 1,00× e os itens unitários ficaram dentro de 3% do previsto.
+Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro de 3% do previsto e as poções empilháveis dentro de 1% (great spirit potion no Rotten Golem, ultimate health potion na Infernal).
 
 ## Plano de charms
 
@@ -135,7 +136,7 @@ Na calibração, as moedas bateram em 1,00× e os itens unitários ficaram dentr
 
 ## Limitações conhecidas
 
-- **Itens empilháveis** usam a média entre 1 e o máximo. A great spirit potion veio ~22% abaixo disso.
+- **Monstros com multiplicador especial:** a regra do cliente (teto de 90%, excedente em quantidade) é aplicada antes do teto de 100% da party. Essa combinação ainda não foi medida.
 - **Antes de haver combate medido, o golpe médio é estimado** (3,2× o level); a calibração compensa parte do erro.
 - **Golpe médio e crítico medidos incluem os procs de charm**, que aparecem no `combatlog` como golpes sem crítico. Isso puxa a fração do dano em crítico um pouco para baixo (os procs são poucos por cento do dano).
 - **Procs elementais ainda são multiplicados pelo crítico do painel**, mas no `combatlog` eles nunca critam. O fator de procs (×1,11) foi ajustado com essa suposição e precisa ser medido de novo.
@@ -146,4 +147,4 @@ Na calibração, as moedas bateram em 1,00× e os itens unitários ficaram dentr
 
 - Charms defensivos (Parry, Dodge) usando o dano recebido. A Adrenaline entra pelo A/B.
 - Tempo estimado no Codex de boss (loot do boss × lutas/h) e de equipamento (chance de raridade das drops).
-- Calibrar a quantidade dos itens empilháveis com mais sessões.
+- Distribuições locais de drop por criatura e item, medidas kill a kill. O conteúdo das bags fica para quando houver uma para abrir.

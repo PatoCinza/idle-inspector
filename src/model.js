@@ -33,15 +33,17 @@ export const monsterLoot = (dataset, monsterKey) => {
   return factor === 1 ? loot : loot.map(boostEntry(dataset.lootCap, new Set(dataset.equipment), factor));
 };
 
-export const rollsPerKill = (chance, lootPcts, gut) =>
-  sum(lootPcts.map((pct) => Math.min(1, (chance / CHANCE_SCALE) * (1 + pct / 100) * (1 + gut))));
+export const partyLootFactor = (lootPcts) => sum(lootPcts.map((pct) => 1 + pct / 100));
+
+export const dropChance = (chance, lootPcts, gut) =>
+  Math.min(1, (chance / CHANCE_SCALE) * partyLootFactor(lootPcts) * (1 + gut));
 
 export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY, gut = 0, scavenge = 0 }) =>
   monsterLoot(dataset, monsterKey).map((entry) => {
     const currency = isCurrency(entry.name);
     const perKill = rollsOncePerKill(entry.name)
       ? (entry.chance / CHANCE_SCALE) * averageQuantity(entry)
-      : rollsPerKill(entry.chance, lootPcts, gut) * averageQuantity(entry);
+      : dropChance(entry.chance, lootPcts, gut) * averageQuantity(entry);
     const value = unitValue(dataset, entry.name) * (currency ? 1 + scavenge : 1);
     return {
       monster: monsterKey,

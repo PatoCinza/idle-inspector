@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  rollsPerKill, monsterLoot, huntLoot, lootRows, groupByItem, charmPlans, bestiaryGoal, lootKills, codexPlan, CHANCE_SCALE,
+  dropChance, monsterLoot, huntLoot, lootRows, groupByItem, charmPlans, bestiaryGoal, lootKills, codexPlan, CHANCE_SCALE,
 } from '../src/model.js';
 
 const dataset = JSON.parse(readFileSync(new URL('../data/game.json', import.meta.url)));
@@ -10,11 +10,14 @@ const session = JSON.parse(readFileSync(new URL('./fixtures/rotten-golem-session
 const hunt = dataset.hunts.find((h) => h.id === 'rottengolem-cave');
 const within = (actual, expected, tolerance) => Math.abs(actual / expected - 1) <= tolerance;
 const STACKABLES = new Set(['great spirit potion', 'ultimate health potion']);
+const infernal = JSON.parse(readFileSync(new URL('./fixtures/infernal-demon-drops.json', import.meta.url)));
+const infernalHunt = dataset.hunts.find((h) => h.id === 'infernalmdemon-cave');
 
-test('cada membro rola com o próprio bônus e a chance satura em 100%', () => {
-  assert.ok(Math.abs(rollsPerKill(10000, [0, 0, 0], 0) - 0.3) < 1e-12);
-  assert.ok(Math.abs(rollsPerKill(10000, [0, 9.8, 4], 0) - 0.3138) < 1e-9);
-  assert.equal(rollsPerKill(CHANCE_SCALE, [50, 50, 50], 0.12), 3);
+test('um sorteio por kill: o bônus de cada membro soma na chance, que satura em 100%', () => {
+  assert.ok(Math.abs(dropChance(10000, [0, 0, 0], 0) - 0.3) < 1e-12);
+  assert.ok(Math.abs(dropChance(10000, [0, 9.8, 4], 0) - 0.3138) < 1e-9);
+  assert.equal(dropChance(40000, [0, 0, 0], 0), 1);
+  assert.equal(dropChance(CHANCE_SCALE, [50, 50, 50], 0.12), 1);
 });
 
 test('multiplicador especial reproduz a regra do cliente', () => {
@@ -44,6 +47,31 @@ test('modelo bate com a sessão real da hunt Rotten Golem', () => {
   const observedUnits = units.reduce((a, n) => a + session.observed[n], 0);
   const predictedUnits = units.reduce((a, n) => a + (predicted[n] ?? 0), 0);
   assert.ok(within(observedUnits, predictedUnits, 0.08), `itens ${observedUnits} vs ${predictedUnits.toFixed(0)}`);
+});
+
+test('empilhável com a chance da party acima de 100% cai em toda kill (Rotten Golem)', () => {
+  const rows = lootRows({ dataset, monsterKey: 'rotten_golem', kills: session.kills.rotten_golem, lootPcts: session.lootPcts });
+  const potion = rows.find((r) => r.item === 'great spirit potion');
+  assert.ok(within(session.observed['great spirit potion'], potion.count, 0.03), `${session.observed['great spirit potion']} vs ${potion.count.toFixed(0)}`);
+});
+
+test('Infernal Demon: a chance satura e a quantidade é a média entre 1 e o máximo', () => {
+  const rows = huntLoot({ dataset, hunt: infernalHunt, killsByMonster: infernal.kills, lootPcts: [0, 0, 0] });
+  const predicted = Object.fromEntries(groupByItem(rows).map((r) => [r.item, r.count]));
+  assert.ok(within(infernal.ultimateHealthPotion, predicted['ultimate health potion'], 0.03));
+  const phantom = infernal.singleKill.infernal_phantom;
+  const terraRod = lootRows({ dataset, monsterKey: 'infernal_phantom', kills: phantom.kills }).find((r) => r.item === 'terra rod');
+  assert.equal(terraRod.count, phantom.items['terra rod']);
+});
+
+test('Infernal Demon: um drop por kill, nunca acima do máximo da tabela', () => {
+  Object.entries(infernal.singleKill).forEach(([monster, { kills, ultimateHealthPotion }]) => {
+    const { max } = dataset.monsters[monster].loot.find((l) => l.name === 'ultimate health potion');
+    const quantities = Object.keys(ultimateHealthPotion).map(Number);
+    const drops = Object.values(ultimateHealthPotion).reduce((a, b) => a + b, 0);
+    assert.equal(drops, kills, monster);
+    assert.ok(Math.min(...quantities) >= 1 && Math.max(...quantities) <= max, monster);
+  });
 });
 
 test('Gut e Scavenge ficam em criaturas diferentes e a Scavenge vai para o Golem', () => {
