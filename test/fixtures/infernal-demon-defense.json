@@ -1,0 +1,16 @@
+{
+  "note": "Sessão real na hunt Infernal Demon (party de 3), 01/10/2026, Parry tier 3 no Infernal Phantom. combatlog de 10,17 min; Charm Analyzer na mesma janela. Os golpes aparados não aparecem como 'taken' no combatlog: cada proc do Parry casa com um 'dealt' físico sem crítico do mesmo valor, sem 'taken' correspondente.",
+  "minutes": 10.17,
+  "taken": {
+    "Infernal Phantom": { "hits": 559, "hp": 236104, "mana": 107333 },
+    "Infernal Demon": { "hits": 566, "hp": 309551, "mana": 144723 },
+    "Infernal Demon Boss": { "hits": 79, "hp": 57072, "mana": 13477 },
+    "Brachiodemon": { "hits": 461, "hp": 214112, "mana": 195437 }
+  },
+  "parry": { "tier": 3, "monster": "infernal_phantom", "ms": 610259, "n": 61, "v": 38071 },
+  "supply": {
+    "minutes": 11.32,
+    "gold": { "supreme health potion": 35100, "ultimate mana potion": 54656, "magic shield potion": 175000, "Thunderstorm": 7644, "Avalanche": 6400 }
+  },
+  "dealtTotal": 19308366
+}

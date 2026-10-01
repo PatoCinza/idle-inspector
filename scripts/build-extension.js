@@ -11,7 +11,10 @@ const ENTRIES = [
   { source: 'extension/page/hook.js', output: 'page-hook.js' },
   { source: 'extension/content/index.js', output: 'content.js' },
   { source: 'extension/background.js', output: 'background.js' },
+  { source: 'extension/options/options.js', output: 'options.js' },
 ];
+
+const STATIC_FILES = [{ source: 'extension/options/options.html', output: 'options.html' }];
 
 const withDynamicUrl = (resource) => ({ ...resource, use_dynamic_url: true });
 
@@ -25,12 +28,12 @@ export const TARGETS = {
   firefox: (manifest) => ({
     ...manifest,
     background: { scripts: ['background.js'] },
-    host_permissions: ['https://baiakidle.com/*'],
+    host_permissions: ['https://baiakidle.com/*', ...manifest.host_permissions],
     browser_specific_settings: {
       gecko: {
         id: GECKO_ID,
         strict_min_version: '128.0',
-        data_collection_permissions: { required: ['none'] },
+        data_collection_permissions: { required: ['none'], optional: ['technicalAndInteraction'] },
       },
     },
   }),
@@ -61,6 +64,7 @@ const buildTarget = async (outDir, target, icons) => {
     ...ENTRIES.map(({ source, output }) => bundle(source, `${dir}/${output}`)),
     writeFile(`${dir}/manifest.json`, `${JSON.stringify(TARGETS[target](base), null, 2)}\n`),
     ...icons.map(({ from, name }) => copyFile(from, `${dir}/img/items/${name}`)),
+    ...STATIC_FILES.map(({ source, output }) => copyFile(path(source), `${dir}/${output}`)),
   ]);
   return { target, dir, icons: icons.length };
 };

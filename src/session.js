@@ -1,4 +1,4 @@
-const EMPTY_TOTALS = { ms: 0, kills: {}, rooms: {}, loot: {} };
+const EMPTY_TOTALS = { ms: 0, kills: {}, rooms: {}, loot: {}, supply: {} };
 
 export const initialSession = () => ({ huntId: null, since: null, totals: EMPTY_TOTALS, first: null, last: null, connectedAt: null });
 
@@ -8,6 +8,16 @@ const isMonsterKey = (key) => !isRoomKey(key) && key !== 'bp';
 const increases = (from = {}, to = {}, read = Number) => Object.fromEntries(
   Object.keys(to)
     .map((key) => [key, (read(to[key]) || 0) - (read(from[key]) || 0)])
+    .filter(([, value]) => value > 0),
+);
+
+const spent = (from = {}, to = {}) => Object.fromEntries(
+  Object.keys(to)
+    .map((key) => {
+      const before = from?.[key]?.g ?? 0;
+      const after = to[key]?.g ?? 0;
+      return [key, after >= before ? after - before : after];
+    })
     .filter(([, value]) => value > 0),
 );
 
@@ -23,6 +33,7 @@ const measureSegment = (first, last) => (first && last
     kills: pick(increases(first.bestiary, last.bestiary), isMonsterKey),
     rooms: pick(increases(first.bestiary, last.bestiary), isRoomKey),
     loot: increases(first.loot, last.loot, (entry) => entry?.n),
+    supply: spent(first.supply ?? {}, last.supply ?? {}),
   }
   : EMPTY_TOTALS);
 
@@ -31,6 +42,7 @@ const addMeasures = (a, b) => ({
   kills: sumMaps(a.kills, b.kills),
   rooms: sumMaps(a.rooms, b.rooms),
   loot: sumMaps(a.loot, b.loot),
+  supply: sumMaps(a.supply ?? {}, b.supply ?? {}),
 });
 
 const huntOf = (rooms) => {
@@ -48,6 +60,7 @@ export const windowOf = (session) => {
     kills: measured.kills,
     rooms: Object.values(measured.rooms).reduce((a, b) => a + b, 0),
     loot: measured.loot,
+    supply: measured.supply,
     since: session.since,
   };
 };
@@ -74,12 +87,21 @@ const followHunt = (session) => {
     : { ...session, huntId: seen };
 };
 
-const onSnapshot = (session, { t, bestiary, loot }) => {
-  if (!bestiary && !loot) return session;
-  const base = loot && session.last?.loot && lootWentDown(session.last.loot, loot)
+const supplyWentDown = (from, to) => Object.keys(from ?? {}).some((key) => (to[key]?.g ?? 0) < (from[key]?.g ?? 0));
+
+const rebaseSupply = (session) => ({
+  ...session,
+  totals: addMeasures(session.totals, measureSegment(session.first, session.last)),
+  first: session.first ? { ...session.last, supply: {} } : null,
+});
+
+const onSnapshot = (session, { t, bestiary, loot, supply = null }) => {
+  if (!bestiary && !loot && !supply) return session;
+  const restarted = loot && session.last?.loot && lootWentDown(session.last.loot, loot)
     ? restart(session, { reason: 'analyzer', t, loot: {} })
     : session;
-  const last = { t, bestiary: bestiary ?? base.last?.bestiary ?? null, loot: loot ?? base.last?.loot ?? null };
+  const base = supply && restarted.last?.supply && supplyWentDown(restarted.last.supply, supply) ? rebaseSupply(restarted) : restarted;
+  const last = { t, bestiary: bestiary ?? base.last?.bestiary ?? null, loot: loot ?? base.last?.loot ?? null, supply: supply ?? base.last?.supply ?? null };
   const first = base.first ?? (last.bestiary && last.loot ? last : null);
   return followHunt({ ...base, since: base.since ?? { reason: 'start', t }, first, last });
 };

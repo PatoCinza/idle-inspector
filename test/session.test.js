@@ -113,3 +113,13 @@ test('estado da sessão é serializável em JSON', () => {
   const session = run([snap(0, { troll: 1 }, coins(1)), snap(MIN, { troll: 4 }, coins(3))]);
   assert.deepEqual(JSON.parse(JSON.stringify(session)), session);
 });
+
+test('janela soma o gasto do Supply Analyser e aceita o analyser zerado', () => {
+  const supply = (g) => ({ 'ultimate mana potion': { n: g / 488, g } });
+  const session = run([
+    { ...snap(0, { troll: 1 }, coins(1)), supply: supply(976) },
+    { ...snap(MIN, { troll: 2 }, coins(2)), supply: supply(2928) },
+    { type: 'snapshot', t: 2 * MIN, bestiary: null, loot: null, supply: supply(488) },
+  ]);
+  assert.deepEqual(windowOf(session).supply, { 'ultimate mana potion': 1952 + 488 });
+});

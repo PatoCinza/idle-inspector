@@ -30,7 +30,7 @@ O coletor só lê o tráfego que o jogo já recebe. Ele mede:
 
 ## Extensão (Chrome e Firefox, em desenvolvimento)
 
-Mostra a tabela de drops ao vivo num overlay sobre o jogo, sem colar script no console e sem copiar código. Não envia nada a nenhum servidor: só lê o tráfego que o jogo já recebe. A única interação com a página é o botão "Ler party e charms".
+Mostra a tabela de drops ao vivo num overlay sobre o jogo, sem colar script no console e sem copiar código. Só lê o tráfego que o jogo já recebe e só envia algo se você ligar os dados de uso anônimos (veja abaixo). A única interação com a página é o botão "Ler party e charms".
 
 ```sh
 npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
@@ -48,6 +48,24 @@ O seletor "Planejar" (abas Drops, Bestiário, Codex e Amostra) escolhe qualquer 
 A aba Amostra guarda, no navegador, cada kill isolada (uma atualização do servidor com uma kill só): quantas kills de cada criatura, quantas vezes cada item caiu e em que quantidade. Ela compara a chance medida com a prevista (intervalo de 95%) e marca quantidade acima do máximo ou item fora da tabela. Com 30 drops ou mais de um item, a quantidade medida substitui a média da tabela nas abas Drops e Charms. A amostra soma todas as sessões e não zera com o Hunt Analyzer.
 
 O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico e bônus de loot de cada membro e as cartas da janela de Charms.
+
+## Dados de uso anônimos (PostHog)
+
+Desligados por padrão. O overlay pergunta uma vez; o botão "Dados" e a página de opções da extensão mostram o que é enviado e ligam ou desligam o envio. No Firefox 140+, a opção usa a permissão de coleta de dados do próprio navegador (`technicalAndInteraction`, opcional), que também aparece na instalação. Nos outros navegadores, fica salva em `storage.local`.
+
+Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de medição e ao fechar a aba, pelo background, para `https://us.i.posthog.com/batch/`:
+
+- `blp_usage`: quantas vezes cada aba foi aberta e quantas vezes o seletor "Planejar", o botão "Ler party e charms", o seletor de lucro/XP e a página de opções foram usados.
+- `blp_hunt_window`: uma por janela de medição, reenviada quando ela avança. Leva:
+  - hunt, duração, kills/h por criatura e salas/h;
+  - o tempo de cada sala (`phase`), para o A/B de charms como a Adrenaline Burst;
+  - a party sem nomes: vocação, level arredondado para baixo em múltiplos de 50, bônus de loot, crítico, tempo em avatar, golpes e dano;
+  - os charms equipados e o Charm Analyzer;
+  - o loot observado e o previsto pelo modelo;
+  - XP/h, dano causado e recebido por criatura e gasto do Supply Analyser.
+- `blp_drop_sample`: o que entrou na aba Amostra desde o último envio, por criatura: kills isoladas, fator de bônus e drops e quantidades por item.
+
+Cada evento leva um identificador aleatório da instalação (`crypto.randomUUID()`, sem relação com a conta), `$process_person_profile: false` (sem perfil de pessoa) e `$geoip_disable: true`. Nunca vão nomes de personagens, de party ou de guild, login nem IDs do jogo. No projeto do PostHog, deixe a captura de IP desligada (Settings → Project → IP data capture). O conteúdo das bags ainda não é coletado.
 
 ## Experimento A/B (ex.: Adrenaline Burst)
 
@@ -97,6 +115,9 @@ npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.mi
 | `src/model.js` | Modelo de loot em funções puras: drops/h, valor por monstro, planos de Gut/Scavenge, bestiário |
 | `src/charms.js` | Plano de charms: majors de dano por criatura, Gut/Scavenge pelo loot, Fatal Hold na criatura que sobra |
 | `src/avatar.js` | Tempo em avatar de cada membro a partir do `procstats` |
+| `src/defense.js` | Charms defensivos: dano recebido por criatura, Parry e Dodge, supplies por dano recebido |
+| `src/telemetry.js`, `src/posthog.js` | Eventos anônimos do PostHog (montagem e envio), consentimento |
+| `extension/options/` | Página de opções: o que é enviado e o consentimento |
 | `src/drop-log.js` | Amostra local de drops: kills isoladas por criatura, chance e quantidade medidas × previstas |
 | `src/combat.js` | Agrega o `combatlog`: dano, golpes e críticos por vocação, dano por criatura |
 | `src/payload.js` | Decodifica o código do coletor em entradas do modelo |
@@ -136,6 +157,12 @@ Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro
   - O modelo é calibrado com o dano real dos charms, com um fator por família: procs, crítico, Fatal Hold e Carnage. O observado é o dano do charm sobre o dano na criatura sem os charms medidos nela. Sem coleta, usa procs ×1,11 (Infernal Demon, 27/09) e 1,0 nas outras: o Savage Blow e a Fatal Hold do Bloated Man-Maggot (01/10) bateram com a fórmula.
 - Scavenge: a aba Charms mostra o ouro a mais medido pelo Charm Analyzer ao lado do previsto pelo modelo de loot (moedas da criatura × valor do charm, com o ritmo de kills da janela).
 - Minors: Gut e Scavenge primeiro, pelo loot; a Fatal Hold vai para a criatura que sobrar.
+- O plano otimiza **lucro/h** ou **XP/h** (seletor na aba Charms). Dano a mais vira kills a mais, e por isso loot e XP na mesma proporção. Os majors defensivos disputam a vaga com os ofensivos na mesma unidade:
+  - **Dano recebido:** o `combatlog` traz cada golpe recebido (`taken`, HP e mana do escudo) por criatura e membro. Se um Parry ou Dodge já está equipado na criatura, o recebido observado é dividido por (1 − chance), porque o golpe evitado nem aparece no log.
+  - **Dodge:** evita chance × dano recebido da criatura. Em lucro/h, vale as supplies de cura poupadas: gasto com poções no Supply Analyser ÷ dano recebido, × dano evitado. Em XP/h, não pontua.
+  - **Parry:** evita o mesmo que o Dodge e devolve o golpe como dano puro, que entra no log como golpe físico sem crítico do membro atingido. Soma as supplies poupadas e o dano refletido (em loot ou XP).
+  - Medido em 01/10 na Infernal Demon (Parry tier 3 no Infernal Phantom, 10 min): 61 procs para 559 golpes recebidos do Phantom e 38 mil de dano refletido, 0,90× o previsto. No mesmo período, o Parry rendeu ~0,2% do dano da hunt; o Savage Blow, ~5%.
+  - A XP/h vem dos números de XP de cada kill (`fx`); antes de medir, usa a XP da tabela × kills/h.
 
 ## Limitações conhecidas
 
@@ -144,10 +171,12 @@ Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro
 - **Golpe médio e crítico medidos incluem os procs de charm**, que aparecem no `combatlog` como golpes sem crítico. Isso puxa a fração do dano em crítico um pouco para baixo (os procs são poucos por cento do dano).
 - **Procs elementais ainda são multiplicados pelo crítico do painel**, mas no `combatlog` eles nunca critam. O fator de procs (×1,11) foi ajustado com essa suposição e precisa ser medido de novo.
 - **Codex de boss e de equipamento** mostram só o progresso e o que falta entregar, sem tempo estimado: as lutas de boss não são medidas e a raridade das drops de equipamento não está no modelo.
-- **Hunts limitadas pelo spawn** não ganham kills/h com mais dano.
+- **Hunts limitadas pelo spawn** não ganham kills/h com mais dano. O plano supõe hunt limitada por dano, o que favorece os majors ofensivos.
+- **Supplies por dano recebido** atribuem todo o gasto com poções ao dano recebido, inclusive a mana gasta em ataque. É um teto para o valor do Dodge e do Parry.
+- **Mortes** ainda não entram: nenhuma morte foi registrada nas sessões medidas, e o formato da mensagem ainda não foi visto.
 
 ## Próximos passos (v2)
 
-- Charms defensivos (Parry, Dodge) usando o dano recebido. A Adrenaline entra pelo A/B.
+- Mortes no plano de charms: kills/h e XP perdidos enquanto o membro está fora, e quanto o dano evitado reduz isso. A Adrenaline entra pelo A/B.
 - Tempo estimado no Codex de boss (loot do boss × lutas/h) e de equipamento (chance de raridade das drops).
 - Conteúdo das bags (o `useitem` enviado e o que volta), quando houver uma para abrir.

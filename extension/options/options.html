@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Baiak Loot Planner · Dados de uso</title>
+  <style>
+    body { margin: 0; background: #111217; color: #e6e6ea; font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    main { max-width: 680px; margin: 0 auto; padding: 24px 16px 40px; }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    h2 { font-size: 15px; margin: 20px 0 6px; color: #f2c66b; }
+    ul { margin: 0; padding-left: 20px; }
+    li { margin: 2px 0; }
+    .toggle { display: flex; align-items: center; gap: 10px; margin: 20px 0 6px; padding: 12px; border: 1px solid #3b3d48; border-radius: 8px; background: #1d1f27; cursor: pointer; }
+    .toggle input { width: 18px; height: 18px; }
+    .status { color: #8d8f9c; margin: 0; }
+    .status.on { color: #7fd39a; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Dados de uso anônimos</h1>
+    <p>Desligado por padrão. Se você ligar, a extensão envia a cada 10 minutos um resumo anônimo das suas hunts para melhorar o modelo de loot e de charms. Os dados vão para o PostHog (servidor nos EUA), sem o seu IP.</p>
+    <label class="toggle"><input type="checkbox" id="consent"> Enviar dados de uso anônimos</label>
+    <p class="status" id="status">Carregando…</p>
+    <h2>O que é enviado</h2>
+    <ul>
+      <li>Uso da extensão: quantas vezes cada aba foi aberta, o seletor "Planejar", o botão "Ler party e charms" e o seletor de lucro/XP.</li>
+      <li>Hunts medidas: hunt, duração, kills/h por criatura, salas/h e o tempo de cada sala.</li>
+      <li>Loot: itens que caíram e o previsto pelo modelo; quantidade de cada item por kill isolada, por criatura.</li>
+      <li>Combate: dano causado e recebido por criatura, XP/h, gasto de supplies, e os charms equipados com os procs e o dano de cada um.</li>
+      <li>Party, sem nomes: vocação, level arredondado para baixo em múltiplos de 50, bônus de loot, crítico e tempo em avatar.</li>
+      <li>Um identificador aleatório desta instalação, criado pela extensão, para separar as instalações. Ele não tem relação com a sua conta.</li>
+    </ul>
+    <h2>O que nunca é enviado</h2>
+    <ul>
+      <li>Nome de personagem, de membros da party, de guild ou de jogadores no chat.</li>
+      <li>Login, e-mail, IDs de conta ou de personagem do jogo.</li>
+      <li>Mensagens, inventário completo ou qualquer outra página além do jogo.</li>
+    </ul>
+    <p>Desligar aqui para o envio na hora. Os dados já enviados são agregados e não identificam você.</p>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

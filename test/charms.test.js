@@ -83,7 +83,7 @@ test('major só entra em criatura com bestiário completo', () => {
   assert.equal(byMonster.mould_phantom.major, null);
   assert.equal(byMonster.branchy_crawler.major, null);
   assert.equal(byMonster.mould_phantom.locked.remaining, 386);
-  assert.ok(byMonster.mould_phantom.locked.huntGain > 0);
+  assert.ok(byMonster.mould_phantom.locked.value > 0);
   assert.ok(locked.damageTotal < plan.damageTotal);
   assert.ok(byMonster.branchy_crawler.minor, 'minors continuam liberados');
 });

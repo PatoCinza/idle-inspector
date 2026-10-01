@@ -119,3 +119,30 @@ test('cpong real enviado pelo cliente não gera evento nem erro', () => {
   capture.outgoing(Uint8Array.from('0d a5 63 70 6f 6e 67 d4 72 40 91 a1 74 cb 42 7a 0f 4b 34 d6 b0 00'.split(' ').map((h) => parseInt(h, 16))));
   assert.deepEqual(events, []);
 });
+
+test('patch com o Supply Analyser vira snapshot com o gasto por item', () => {
+  const { capture, events } = setup();
+  capture.incoming(patchFrame(15, JSON.stringify({ 'ultimate mana potion': { n: 3, g: 1464 }, Thunderstorm: { n: 1, g: 52 } })));
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, 'snapshot');
+  assert.equal(events[0].supply['ultimate mana potion'].g, 1464);
+  assert.equal(events[0].loot, null);
+});
+
+test('xp dos efeitos visuais é somada em lotes de 5 s', () => {
+  let clock = 0;
+  const events = [];
+  const capture = createCapture({ emit: (event) => events.push(event), now: () => clock });
+  const fx = (amounts) => roomData('fx', [...amounts.map((amount) => ({ t: 'xp', x: 1, y: 1, amount })), { t: 'gold', x: 1, y: 1, amount: 999 }]);
+  [[0, [10, 20]], [2000, [30]], [5000, [40]], [7000, [5]]].forEach(([t, amounts]) => { clock = t; capture.incoming(fx(amounts)); });
+  assert.deepEqual(events.map((e) => [e.t, e.xp]), [[0, 30], [5000, 70]]);
+  capture.incoming(roomData('fx', { t: 'hit', x: 1, y: 1, amount: 50 }));
+  assert.equal(events.length, 2);
+});
+
+test('notify de fase concluída emite o tempo da sala; outros notify não', () => {
+  const { capture, events } = setup();
+  capture.incoming(roomData('notify', { kind: 'phase', text: '{name} concluída!', params: { ms: 41250, name: 'Infernal Demon' } }));
+  capture.incoming(roomData('notify', { kind: 'wave', text: 'Wave {n}/{total} concluída!', params: { n: 1, total: 10 } }));
+  assert.deepEqual(events, [{ type: 'phase', ms: 41250, t: 1234 }]);
+});

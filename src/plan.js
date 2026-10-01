@@ -2,7 +2,7 @@ import { windowOf, isLive, segmentOf } from './session.js';
 import { creatures } from './model.js';
 import { MIN_MINUTES, perHour } from './drops.js';
 
-export const EMPTY_WINDOW = { huntId: null, minutes: 0, kills: {}, rooms: 0, loot: {}, since: null };
+export const EMPTY_WINDOW = { huntId: null, minutes: 0, kills: {}, rooms: 0, loot: {}, supply: {}, since: null };
 
 const huntById = (dataset, id) => dataset.hunts.find((hunt) => hunt.id === id) ?? null;
 

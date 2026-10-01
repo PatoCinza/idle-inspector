@@ -5,8 +5,8 @@ import { combatFromLog, mergeCombat, hasCombat } from '../combat.js';
 const ROOM_DATA = 13;
 const ANALYZER_PANELS = new Set(['hunt', 'loot']);
 
-const fromPatch = ({ bestiary, loot, codex }) => [
-  ...(bestiary || loot ? [{ type: 'snapshot', bestiary, loot }] : []),
+const fromPatch = ({ bestiary, loot, supply, codex }) => [
+  ...(bestiary || loot || supply ? [{ type: 'snapshot', bestiary, loot, supply }] : []),
   ...(codex ? [{ type: 'codex', codex }] : []),
 ];
 
@@ -23,12 +23,23 @@ const INCOMING = {
     const combat = combatFromLog(payload);
     return hasCombat(combat) ? [{ type: 'combat', combat }] : [];
   },
+  notify: (payload) => {
+    const ms = Number(payload?.params?.ms);
+    return payload?.kind === 'phase' && ms > 0 ? [{ type: 'phase', ms }] : [];
+  },
+  fx: (payload) => {
+    const xp = (Array.isArray(payload) ? payload : [payload])
+      .filter((effect) => effect?.t === 'xp' && Number.isFinite(effect.amount))
+      .reduce((total, effect) => total + effect.amount, 0);
+    return xp > 0 ? [{ type: 'xp', xp }] : [];
+  },
 };
 
-export const THROTTLE_MS = { procs: 5000, charmStats: 5000, combat: 5000 };
+export const THROTTLE_MS = { procs: 5000, charmStats: 5000, combat: 5000, xp: 5000 };
 
 const MERGE = {
   combat: (pending, next) => ({ ...next, combat: mergeCombat(pending.combat, next.combat) }),
+  xp: (pending, next) => ({ ...next, xp: pending.xp + next.xp }),
 };
 
 const latest = (pending, next) => next;

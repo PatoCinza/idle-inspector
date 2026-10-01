@@ -138,24 +138,36 @@ const BLOCKED = {
 
 const signed = (fraction) => `+${(fraction * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 
-const majorCell = (row) => {
-  if (row.majorName) return `${escapeHtml(row.majorName)} <span class="dim">${signed(row.major.creatureGain)}</span>`;
-  if (!row.locked) return '<span class="dim">sem major de dano</span>';
+const UNIT_LABEL = { profit: '/h', xp: ' xp/h' };
+
+const valueOf = (pick, objective) => (pick.value === null || !objective ? '' : `+${formatGold(pick.value)}${UNIT_LABEL[objective]} · `);
+
+const pickNote = (pick, objective) => {
+  const parts = [
+    valueOf(pick, objective),
+    pick.reflected > 0 || !('avoided' in pick) ? signed(pick.creatureGain) : '',
+    'avoided' in pick ? ` · evita ${formatGold(pick.avoided)}/h` : '',
+  ].join('');
+  return ` <span class="dim">${parts}</span>`;
+};
+
+const majorCell = (row, objective) => {
+  if (row.majorName) return `${escapeHtml(row.majorName)}${pickNote(row.major, objective)}`;
+  if (!row.locked) return '<span class="dim">sem major</span>';
   const after = row.lockedUnlockName ? ` · depois: ${escapeHtml(row.lockedUnlockName)}` : '';
   return `<span class="warn">bestiário ${formatInteger(row.locked.have)}/${formatInteger(row.locked.goal)}</span> <span class="dim">faltam ${formatDuration(row.locked.hours)}${after}</span>`;
 };
 
-const minorCell = (row) => {
+const minorCell = (row, objective) => {
   if (!row.minorName) return '<span class="dim">—</span>';
-  const gain = row.minor.kind === 'damage' ? ` <span class="dim">${signed(row.minor.creatureGain)}</span>` : '';
-  return `${escapeHtml(row.minorName)}${gain}`;
+  return `${escapeHtml(row.minorName)}${row.minor.kind === 'damage' ? pickNote(row.minor, objective) : ''}`;
 };
 
-const charmRow = (row) => `<tr>
+const charmRow = (objective) => (row) => `<tr>
   <td>${escapeHtml(row.name)}${row.boss ? ' <span class="dim">+ boss</span>' : ''}</td>
   <td class="n">${formatPercent(row.weight)}</td>
-  <td>${majorCell(row)}</td>
-  <td>${minorCell(row)}</td>
+  <td>${majorCell(row, objective)}</td>
+  <td>${minorCell(row, objective)}</td>
   <td class="dim">${escapeHtml(row.equipped.join(', ') || '—')}</td>
 </tr>`;
 
@@ -179,28 +191,75 @@ const scavengeLine = (check) => (check
   ? `Scavenge em ${check.monster}: medido ${formatGold(check.measured)}/h · previsto ${formatGold(check.predicted)}/h${check.predicted > 0 ? ` (${formatCount(check.measured / check.predicted)}×)` : ''}.`
   : '');
 
+const OBJECTIVE_LABELS = { profit: 'Lucro/h', xp: 'XP/h' };
+
+export const renderObjectiveNav = (active) => `<nav class="tabs subtabs">${Object.entries(OBJECTIVE_LABELS)
+  .map(([id, label]) => `<button class="tab${id === active ? ' active' : ''}" data-objective="${id}">Otimizar ${label}</button>`)
+  .join('')}</nav>`;
+
+const economyLine = (economy) => (economy
+  ? [
+    `Loot ${formatGold(economy.lootPerHour)}/h`,
+    `XP ${formatGold(economy.xpPerHour)}/h (${economy.xpMeasured ? 'medido' : 'estimado pela tabela'})`,
+    `supplies de cura ${formatGold(economy.recoveryPerHour)}/h`,
+    economy.supplyPerDamage === null ? 'dano recebido ainda não medido' : `${formatCount(economy.supplyPerDamage)} gold por ponto de dano recebido`,
+  ].join(' · ')
+  : '');
+
+const planLine = (table) => (table.valueTotal === null || !table.objective
+  ? ''
+  : `Plano: +${formatGold(table.valueTotal)}${UNIT_LABEL[table.objective]} (${signed(table.damageTotal)} de dano).`);
+
+const defenseLine = (m) => `${m.name} em ${m.monster}: medido ${formatGold(m.measured)}/h evitado (${formatCount(m.procsPerHour)} procs/h) · previsto ${formatGold(m.predicted)}/h${m.predicted > 0 ? ` (${formatCount(m.measured / m.predicted)}×)` : ''}.`;
+
 const summary = (table) => [
   table.currentDamage === null ? '' : `Dano atual dos majors e Fatal Hold: ${signed(table.currentDamage)} · plano: ${signed(table.damageTotal)}.`,
+  planLine(table),
+  economyLine(table.economy),
+  ...(table.measuredDefense ?? []).map(defenseLine),
   ...partyLines(table.members),
   scavengeLine(table.scavenge),
   table.estimatedHit ? 'Golpe médio estimado pelo level: aguarde alguns minutos de combate.' : '',
 ].filter(Boolean).map((line) => `<p class="status">${escapeHtml(line)}</p>`).join('');
 
-export const renderCharms = (table) => {
+const defenseOption = (option) => (option.owned
+  ? `${formatGold(option.avoided)}/h`
+  : `<span class="dim">${formatGold(option.avoided)}/h</span>`);
+
+const defenseRow = (row) => `<tr>
+  <td>${escapeHtml(row.name)}</td>
+  <td class="n">${formatGold(row.base)}/h</td>
+  <td class="n">${formatPercent(row.share)}</td>
+  <td>${escapeHtml(row.equippedName ?? '—')}</td>
+  <td class="n">${defenseOption(row.options.parry)}</td>
+  <td class="n">${defenseOption(row.options.dodge)}</td>
+  <td class="n">${formatGold(row.options.dodge.saved)}/h</td>
+</tr>`;
+
+const defenseSection = (table) => (table.defense?.length
+  ? `<h3>Dano recebido</h3>
+    <table>
+      <thead><tr><th>Criatura</th><th class="n">Recebido</th><th class="n">%</th><th>Defesa equipada</th><th class="n">Parry evita</th><th class="n">Dodge evita</th><th class="n">Supplies poupadas</th></tr></thead>
+      <tbody>${table.defense.map(defenseRow).join('')}</tbody>
+    </table>`
+  : '<p class="waiting">Dano recebido ainda não medido: Parry e Dodge entram no plano depois dos primeiros golpes recebidos.</p>');
+
+export const renderCharms = (table, objective = 'profit') => {
   if (!table.ready) return `<p class="waiting">${escapeHtml(BLOCKED[table.reason])}</p>`;
-  return `${summary(table)}
+  return `${renderObjectiveNav(objective)}${summary(table)}
     <div class="scroll plans">
       <table>
         <thead><tr><th>Criatura</th><th class="n">Dano na hunt</th><th>Major</th><th>Minor</th><th>Equipado</th></tr></thead>
-        <tbody>${table.rows.map(charmRow).join('')}</tbody>
+        <tbody>${table.rows.map(charmRow(table.objective)).join('')}</tbody>
       </table>
+      ${defenseSection(table)}
       <h3>Gut e Scavenge</h3>
       <table>
         <thead><tr><th>Gut</th><th>Scavenge</th><th class="n">Total</th></tr></thead>
         <tbody>${table.lootPlans.map(lootRow).join('')}</tbody>
       </table>
     </div>
-    <p class="foot">Dano calibrado com ${escapeHtml(table.calibration.source ?? 'uma medição de referência')} (procs ×${formatCount(table.calibration.proc)}, crítico ×${formatCount(table.calibration.crit)}, Fatal Hold ×${formatCount(table.calibration.fatal)}). Dano na hunt ${table.damageMeasured ? 'medido no combate' : 'estimado pelo HP das kills'}. Major só entra em criatura com o bestiário completo. Gut e Scavenge são escolhidos primeiro pelo loot.</p>`;
+    <p class="foot">Dano calibrado com ${escapeHtml(table.calibration.source ?? 'uma medição de referência')} (procs ×${formatCount(table.calibration.proc)}, crítico ×${formatCount(table.calibration.crit)}, Fatal Hold ×${formatCount(table.calibration.fatal)}). Dano na hunt ${table.damageMeasured ? 'medido no combate' : 'estimado pelo HP das kills'}. Major só entra em criatura com o bestiário completo. Gut e Scavenge são escolhidos primeiro pelo loot. Lucro/h: dano a mais vira kills e loot a mais (hunt limitada por dano); dano evitado vira supplies de cura poupadas (todo gasto com poções ÷ dano recebido). XP/h: só o dano conta, então o Dodge não pontua e o Parry vale pelo golpe refletido. Parry e Dodge evitam o golpe inteiro, que nem aparece no log; o Parry ainda devolve o mesmo valor como dano puro. Mortes ainda não entram.</p>`;
 };
 
 const SAMPLE_STATUS = {

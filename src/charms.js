@@ -1,4 +1,5 @@
 import { charmPlans, creatures, charmValue, bestiaryGoal } from './model.js';
+import { DEFENSIVE_MAJORS, defensiveOption } from './defense.js';
 
 const ELEMENTAL = new Set(['wound', 'enflame', 'poison', 'freeze', 'zap', 'curse', 'divine_wrath']);
 const DAMAGE_MAJORS = new Set([...ELEMENTAL, 'overpower', 'overflux', 'savage_blow', 'low_blow', 'carnage']);
@@ -76,7 +77,7 @@ const estimatedHpPerHour = ({ dataset, hunt, killsByMonster, roomsPerHour = 0 },
   return hp * kills + (key === hunt.bossKey ? hp * roomsPerHour * ((dataset.bossWave?.hpMult ?? 3) - 1) : 0);
 };
 
-const hpPerHour = (context, key) => context.dealtPerHour?.[key] ?? estimatedHpPerHour(context, key);
+export const hpPerHour = (context, key) => context.dealtPerHour?.[key] ?? estimatedHpPerHour(context, key);
 
 export const creatureWeights = (context) => {
   const raw = creatures(context.hunt).map((key) => [key, hpPerHour(context, key)]);
@@ -197,22 +198,43 @@ export const bestiaryLock = ({ dataset, killsByMonster, bestiary }, key) => {
 const unlockGain = (keys, options, key, base) => {
   const unlocked = bestAssignment([...keys, key], options);
   const pick = unlocked.picks.find((p) => p.monster === key);
-  return pick ? { charm: pick.charm, huntGain: unlocked.score - base.score } : null;
+  return pick ? { charm: pick.charm, value: unlocked.score - base.score } : null;
 };
 
-export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, lootPcts, party, owned, bossRollsLoot, quantities = {}, bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
+export const OBJECTIVES = ['profit', 'xp'];
+
+const unitOf = (objective, economy) => {
+  const unit = objective === 'xp' ? economy?.xpPerHour : economy?.lootPerHour;
+  return unit > 0 ? unit : null;
+};
+
+const pickDetails = (option, monster, gain, unit) => ({
+  charm: option.key,
+  value: unit ? gain : null,
+  huntGain: option.damage[monster],
+  creatureGain: option.perCreature[monster],
+  ...(option.defensive ? { avoided: option.effects[monster].avoided, reflected: option.effects[monster].reflected, saved: option.saved[monster] } : {}),
+});
+
+export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, lootPcts, party, owned, bossRollsLoot, quantities = {}, bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION, objective = 'profit', economy = null, defense = null }) => {
   const keys = creatures(hunt);
   const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour });
   const members = normalizeParty(party, fallbackHit);
+  const unit = unitOf(objective, economy);
+  const scale = unit ?? 1;
   const ownedOf = (category) => dataset.charms
     .filter((c) => c.category === category && owned[c.key])
     .map((c) => ({ key: c.key, name: c.name, tier: owned[c.key] }));
   const withGains = (list) => list.map((c) => {
     const perCreature = Object.fromEntries(keys.map((k) => [k, damageGain({ dataset, charmKey: c.key, tier: c.tier, monsterKey: k, party: members, calibration })]));
-    return { ...c, perCreature, gains: Object.fromEntries(keys.map((k) => [k, perCreature[k] * weights[k]])) };
+    const damage = Object.fromEntries(keys.map((k) => [k, perCreature[k] * weights[k]]));
+    return { ...c, perCreature, damage, gains: Object.fromEntries(keys.map((k) => [k, damage[k] * scale])) };
   });
+  const defensive = unit && defense
+    ? ownedOf('major').filter((c) => DEFENSIVE_MAJORS.has(c.key)).map((charm) => defensiveOption({ dataset, charm, keys, defense, economy, objective, dealtPerHour }))
+    : [];
 
-  const majors = withGains(ownedOf('major').filter((c) => DAMAGE_MAJORS.has(c.key)));
+  const majors = [...withGains(ownedOf('major').filter((c) => DAMAGE_MAJORS.has(c.key))), ...defensive];
   const locks = Object.fromEntries(keys.map((k) => [k, bestiaryLock({ dataset, killsByMonster, bestiary }, k)]));
   const majorKeys = keys.filter((k) => !locks[k]);
   const majorPick = bestAssignment(majorKeys, majors);
@@ -222,6 +244,7 @@ export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPe
   const lootMonsters = new Set(Object.values(loot.charms).map((c) => c.monster));
   const damageMinors = withGains(ownedOf('minor').filter((c) => DAMAGE_MINORS.has(c.key)));
   const minorPick = bestAssignment(keys.filter((k) => !lootMonsters.has(k)), damageMinors);
+  const optionOf = (list, key) => list.find((option) => option.key === key);
 
   const rows = keys.map((key) => {
     const major = majorPick.picks.find((p) => p.monster === key);
@@ -233,20 +256,23 @@ export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPe
       name: dataset.monsters[key]?.name ?? key,
       boss: key === hunt.bossKey,
       weight: weights[key],
-      major: major ? { charm: major.charm, huntGain: major.gain, creatureGain: major.gain / weights[key] } : null,
+      major: major ? pickDetails(optionOf(majors, major.charm), key, major.gain, unit) : null,
       locked: locks[key] ? { ...locks[key], ...unlock } : null,
       minor: lootCharm
         ? { charm: lootCharm[0], kind: 'loot' }
-        : damageMinor ? { charm: damageMinor.charm, kind: 'damage', huntGain: damageMinor.gain, creatureGain: damageMinor.gain / weights[key] } : null,
+        : damageMinor ? { ...pickDetails(optionOf(damageMinors, damageMinor.charm), key, damageMinor.gain, unit), kind: 'damage' } : null,
     };
   });
+  const picked = [...majorPick.picks.map((p) => [majors, p]), ...minorPick.picks.map((p) => [damageMinors, p])];
 
   return {
     rows,
     majors,
     lootPlans,
     loot,
-    damageTotal: majorPick.score + minorPick.score,
+    objective: unit ? objective : null,
+    valueTotal: unit ? majorPick.score + minorPick.score : null,
+    damageTotal: sum(picked.map(([list, p]) => optionOf(list, p.charm).damage[p.monster])),
     estimatedHit: members.some((m) => m.estimatedHit),
   };
 };

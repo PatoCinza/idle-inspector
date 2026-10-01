@@ -18,9 +18,11 @@ const SHELL = `<style>${STYLES}</style>
     <strong>Baiak Loot Planner</strong>
     <div class="actions">
       <button class="ghost" data-action="read-party" title="Lê o bônus de loot da party e os charms equipados">Ler party e charms</button>
+      <button class="ghost" data-action="options" title="Dados de uso anônimos: o que é enviado e como ligar ou desligar">Dados</button>
       <button class="ghost" data-action="toggle" title="Recolher ou expandir">▾</button>
     </div>
   </header>
+  <div class="consent"></div>
   <nav class="tabs"></nav>
   <div class="planner"></div>
   <div class="body"></div>
@@ -34,11 +36,15 @@ const TABS = [
   { id: 'sample', label: 'Amostra' },
 ];
 
-export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'drops', codexSection: 'hunt', plannedHunt: null });
+export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'drops', codexSection: 'hunt', plannedHunt: null, charmObjective: 'profit' });
 
 const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary', 'sample']);
 
-export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, actions = {} }) => {
+const CONSENT_PROMPT = `<span>Quer ajudar a calibrar o modelo de loot e de charms? Dá para enviar dados de uso anônimos, sem nomes e sem IP. Desligado por padrão.</span>
+  <button class="ghost" data-action="options">Ver o que é enviado</button>
+  <button class="ghost" data-action="consent-dismiss">Agora não</button>`;
+
+export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, actions = {}, consentPrompt = false }) => {
   let ui = { ...defaultUi(), ...stored };
   let app = null;
   let timer = null;
@@ -52,6 +58,10 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
 
   const panel = shadow.querySelector('.panel');
   const body = shadow.querySelector('.body');
+  const consent = shadow.querySelector('.consent');
+  const track = actions.track ?? (() => {});
+  const setConsentPrompt = (visible) => { consent.innerHTML = visible ? CONSENT_PROMPT : ''; };
+  setConsentPrompt(consentPrompt);
   const view = doc.defaultView;
 
   const clamp = (value, max) => Math.min(Math.max(0, value), Math.max(0, max));
@@ -123,7 +133,9 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       combat: app.combat ?? null,
       bestiary: app.session.last?.bestiary ?? null,
       quantities: quantities(),
-    })),
+      xp: app.xp ?? 0,
+      objective: ui.charmObjective,
+    }), ui.charmObjective),
     bestiary: (plan) => renderBestiary(bestiaryTable({
       dataset,
       hunt: plan.hunt,
@@ -180,12 +192,24 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
 
   const ownActions = {
     toggle: () => updateUi({ collapsed: !ui.collapsed }),
-    'read-party': readParty,
+    'read-party': () => {
+      track({ type: 'readParty' });
+      return readParty();
+    },
+    options: () => {
+      setConsentPrompt(false);
+      return actions.openOptions?.();
+    },
+    'consent-dismiss': () => {
+      setConsentPrompt(false);
+      return actions.dismissConsent?.();
+    },
   };
 
   const onActivate = (event) => {
     const tab = event.target.closest('[data-tab]')?.dataset.tab;
     if (tab) {
+      track({ type: 'tab', tab });
       updateUi({ tab });
       render();
       return;
@@ -193,6 +217,13 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     const codexSectionId = event.target.closest('[data-codex]')?.dataset.codex;
     if (codexSectionId) {
       updateUi({ codexSection: codexSectionId });
+      render();
+      return;
+    }
+    const objective = event.target.closest('[data-objective]')?.dataset.objective;
+    if (objective) {
+      track({ type: 'objective' });
+      updateUi({ charmObjective: objective });
       render();
       return;
     }
@@ -208,6 +239,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
   shadow.addEventListener('click', onActivate);
   shadow.addEventListener('change', (event) => {
     if (!event.target.matches('[data-hunt]')) return;
+    track({ type: 'planner' });
     updateUi({ plannedHunt: event.target.value || null });
     render();
   });

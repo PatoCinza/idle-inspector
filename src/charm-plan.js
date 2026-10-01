@@ -1,9 +1,10 @@
-import { charmPlan, currentDamage, measuredCharms, partyAvgHit, calibrate } from './charms.js';
+import { charmPlan, currentDamage, measuredCharms, partyAvgHit, calibrate, hpPerHour } from './charms.js';
 import { charmsFromSlots } from './payload.js';
 import { withAvatar } from './avatar.js';
-import { withCombat, dealtPerHour } from './combat.js';
+import { withCombat, dealtPerHour, takenPerHour } from './combat.js';
 import { findHunt, rates, perHour, lootPcts, MIN_MINUTES } from './drops.js';
-import { scavengeGoldPerHour } from './model.js';
+import { scavengeGoldPerHour, huntLoot, totals, creatures } from './model.js';
+import { defenseOf, supplyPerDamage, measuredDefense, recoverySpent, defensiveEffect, DEFENSIVE_MAJORS } from './defense.js';
 
 const charmName = (dataset, key) => dataset.charms.find((charm) => charm.key === key)?.name ?? key;
 
@@ -39,7 +40,21 @@ const requirements = ({ hunt, window, party, charmSlots }) => {
   return null;
 };
 
-export const charmTable = ({ dataset, window, party: readParty, charmSlots, charmStats, procs = null, combat = null, bestiary, bossRollsLoot = true, quantities = {} }) => {
+const sum = (values) => values.reduce((a, b) => a + b, 0);
+
+const estimatedXpPerHour = ({ dataset, hunt, killsByMonster, roomsPerHour }) => sum(creatures(hunt).map((key) => (dataset.monsters[key]?.exp ?? 0) * (killsByMonster[key] ?? 0)))
+  + (hunt.bossKey ? (dataset.monsters[hunt.bossKey]?.exp ?? 0) * roomsPerHour * ((dataset.bossWave?.expMult ?? 1) - 1) : 0);
+
+const economyOf = ({ common, assigned, window, xp, defense }) => ({
+  lootPerHour: totals(huntLoot({ ...common, charms: assigned })).total,
+  xpPerHour: xp > 0 ? (xp * 60) / window.minutes : estimatedXpPerHour(common),
+  xpMeasured: xp > 0,
+  dealtPerHour: sum(creatures(common.hunt).map((key) => hpPerHour(common, key))),
+  recoveryPerHour: (recoverySpent(window.supply) * 60) / window.minutes,
+  supplyPerDamage: supplyPerDamage({ supply: window.supply, minutes: window.minutes, defense }),
+});
+
+export const charmTable = ({ dataset, window, party: readParty, charmSlots, charmStats, procs = null, combat = null, bestiary, bossRollsLoot = true, quantities = {}, xp = 0, objective = 'profit' }) => {
   const party = withCombat(withAvatar(readParty, procs), combat);
   const hunt = findHunt(dataset, window);
   const missing = requirements({ hunt, window, party, charmSlots });
@@ -56,10 +71,12 @@ export const charmTable = ({ dataset, window, party: readParty, charmSlots, char
     bossRollsLoot,
     quantities,
   };
+  const defense = defenseOf({ dataset, takenPerHour: takenPerHour({ dataset, hunt, combat, minutes: window.minutes }), assigned });
+  const economy = economyOf({ common, assigned, window, xp, defense });
   const measured = measuredCharms({ ...common, charmStats, assigned });
   const fallbackHit = partyAvgHit(measured);
   const calibration = calibrate({ ...common, party, measured, assigned, fallbackHit, source: 'seus charms medidos' });
-  const plan = charmPlan({ ...common, party, owned, bestiary, fallbackHit, calibration });
+  const plan = charmPlan({ ...common, party, owned, bestiary, fallbackHit, calibration, objective, economy, defense });
   const knowsMajors = Object.keys(assigned).some((key) => dataset.charms.find((c) => c.key === key)?.category === 'major');
   const equippedOn = (monster) => Object.entries(assigned)
     .filter(([, slot]) => slot.monster === monster)
@@ -88,6 +105,21 @@ export const charmTable = ({ dataset, window, party: readParty, charmSlots, char
     })),
     bestLoot: plan.loot.total,
     damageTotal: plan.damageTotal,
+    valueTotal: plan.valueTotal,
+    objective: plan.objective,
+    economy,
+    defense: defense ? Object.entries(defense).map(([monster, d]) => ({
+      monster,
+      name: dataset.monsters[monster]?.name ?? monster,
+      ...d,
+      share: d.base / (sum(Object.values(defense).map((x) => x.base)) || 1),
+      equippedName: d.equipped ? charmName(dataset, d.equipped) : null,
+      options: Object.fromEntries([...DEFENSIVE_MAJORS].map((key) => {
+        const effect = defensiveEffect({ dataset, charmKey: key, tier: owned[key] ?? 3, base: d.base });
+        return [key, { ...effect, owned: Boolean(owned[key]), saved: effect.avoided * (economy.supplyPerDamage ?? 0) }];
+      })),
+    })).sort((a, b) => b.base - a.base) : null,
+    measuredDefense: measuredDefense({ dataset, charmStats, assigned, defense }),
     currentDamage: knowsMajors ? currentDamage({ ...common, party, assigned, fallbackHit, calibration }) : null,
   };
 };

@@ -70,6 +70,9 @@ tr.deliverable td:first-child { box-shadow: inset 3px 0 0 #7fd39a; }
 .pane > .scroll { flex: 1 1 auto; }
 .pane > p { margin: 0; flex: none; }
 .planner { padding: 8px 12px 0; }
+.consent { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 12px; background: #1d2a22; color: #c7c8d1; border-bottom: 1px solid #2c2e38; }
+.consent:empty, .panel.collapsed .consent { display: none; }
+.consent span { flex: 1 1 260px; }
 .planner:empty, .panel.collapsed .planner { display: none; }
 .picker { display: flex; align-items: center; gap: 6px; color: #c7c8d1; }
 .picker select { background: #1d1f27; color: #e6e7ee; border: 1px solid #343744; border-radius: 4px; padding: 2px 4px; max-width: 260px; }

@@ -28,14 +28,23 @@ test('o hook roda no mundo MAIN em document_start e a ponte no mundo isolado', a
   scripts.forEach((s) => assert.deepEqual(s.matches, ['https://baiakidle.com/jogar/*']));
 });
 
-test('permissões mínimas: só storage; firefox pede o site explicitamente', async () => {
+test('permissões mínimas: storage e o host do PostHog; firefox pede o site do jogo explicitamente', async () => {
   for (const target of ['chrome', 'firefox']) {
     const m = await manifest(target);
     assert.deepEqual(m.permissions, ['storage']);
     assert.equal(m.manifest_version, 3);
+    assert.deepEqual(m.options_ui, { page: 'options.html', open_in_tab: true });
+    assert.ok(m.description.length <= 132);
   }
-  assert.equal((await manifest('chrome')).host_permissions, undefined);
-  assert.deepEqual((await manifest('firefox')).host_permissions, ['https://baiakidle.com/*']);
+  assert.deepEqual((await manifest('chrome')).host_permissions, ['https://us.i.posthog.com/*']);
+  assert.deepEqual((await manifest('firefox')).host_permissions, ['https://baiakidle.com/*', 'https://us.i.posthog.com/*']);
+});
+
+test('página de opções é empacotada', async () => {
+  for (const target of ['chrome', 'firefox']) {
+    assert.match(await read(target, 'options.html'), /options\.js/);
+    assert.match(await read(target, 'options.js'), /blp\.consent/);
+  }
 });
 
 test('botão da barra existe e o background segue o formato de cada navegador', async () => {
@@ -46,11 +55,11 @@ test('botão da barra existe e o background segue o formato de cada navegador', 
   assert.deepEqual(firefox.background, { scripts: ['background.js'] });
 });
 
-test('firefox declara id, versão mínima com world MAIN e nenhuma coleta de dados', async () => {
+test('firefox declara id, versão mínima com world MAIN e coleta técnica só opcional', async () => {
   const { browser_specific_settings: gecko } = await manifest('firefox');
   assert.equal(gecko.gecko.id, GECKO_ID);
   assert.ok(parseInt(gecko.gecko.strict_min_version, 10) >= 128);
-  assert.deepEqual(gecko.gecko.data_collection_permissions, { required: ['none'] });
+  assert.deepEqual(gecko.gecko.data_collection_permissions, { required: ['none'], optional: ['technicalAndInteraction'] });
   assert.equal((await manifest('chrome')).browser_specific_settings, undefined);
 });
 
@@ -73,18 +82,22 @@ test('ícones dos itens vão empacotados dentro da extensão', async () => {
   assert.ok(icons.every((f) => /^\d+\.png$/.test(f)));
 });
 
-test('nenhum bundle faz chamada de rede', async () => {
+test('só o background faz chamada de rede, e só para o PostHog', async () => {
   const forbidden = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|new\s+WebSocket|new\s+EventSource|importScripts|https?:\/\/(?!baiakidle\.com)/;
+  const otherHosts = /XMLHttpRequest|sendBeacon|new\s+WebSocket|new\s+EventSource|importScripts|https?:\/\/(?!baiakidle\.com|us\.i\.posthog\.com)/;
   for (const target of ['chrome', 'firefox']) {
-    for (const file of ['page-hook.js', 'content.js', 'background.js']) {
+    for (const file of ['page-hook.js', 'content.js', 'options.js']) {
       assert.doesNotMatch(await read(target, file), forbidden, `${target}/${file}`);
     }
+    const background = await read(target, 'background.js');
+    assert.doesNotMatch(background, otherHosts, `${target}/background.js`);
+    assert.equal((background.match(/\bfetch\s*\(/g) ?? []).length, 1);
   }
 });
 
 test('bundles são ASCII puro, sem depender da decodificação do navegador', async () => {
   for (const target of ['chrome', 'firefox']) {
-    for (const file of ['page-hook.js', 'content.js', 'background.js']) {
+    for (const file of ['page-hook.js', 'content.js', 'background.js', 'options.js']) {
       assert.doesNotMatch(await read(target, file), /[^\x00-\x7F]/, `${target}/${file}`);
     }
   }
