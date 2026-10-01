@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { codexTable, codexSection, chainProgress, bossChains, gearChains } from '../src/codex.js';
+import { codexTable, codexSection, chainProgress, bossChains, gearChains, huntChains } from '../src/codex.js';
 import { bossCodex, gearCodex } from '../src/extract.js';
 import { renderCodex, renderCodexSection, renderCodexNav } from '../src/overlay/plans-view.js';
 import { initialApp, reduceApp } from '../src/app-state.js';
@@ -159,4 +159,21 @@ test('seção Hunts lista o domínio de todas as hunts com Codex', () => {
   assert.equal(own.current.label, 'Domínio I');
   assert.ok(own.deliverable);
   assert.equal(table.rows[0].deliverable, true);
+});
+
+test('Codex de hunts ordena pelas mais completas, com as concluídas no fim', () => {
+  const [a, b, c] = huntChains(dataset).slice(0, 3);
+  const codex = {
+    done: [a.steps[0].id, a.steps[1].id, a.steps[2].id, b.steps[0].id],
+    prog: { [c.steps[0].id]: c.steps[0].req.map((r) => r.qty) },
+  };
+  const rows = codexSection({ dataset, section: 'hunt', codex, hunt: null }).rows;
+  assert.deepEqual(rows.slice(0, 2).map((r) => r.key), [c.key, b.key]);
+  assert.equal(rows.at(-1).key, a.key);
+});
+
+test('itens que faltam mostram primeiro os que a hunt escolhida dropa', () => {
+  const data = { ...dataset, codexBosses: bossCodex([{ id: 'boss-a-1', monster: 'a', mname: 'A', step: 0, req: [{ item: 'amber', qty: 10 }, { item: 'fish', qty: 5 }] }]) };
+  const html = renderCodexSection(codexSection({ dataset: data, section: 'boss', codex: null, hunt }), RARITIES);
+  assert.ok(html.indexOf('fish ×5') < html.indexOf('amber ×10'));
 });

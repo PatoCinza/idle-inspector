@@ -89,11 +89,20 @@ const byCloseness = (a, b) => Number(b.deliverable) - Number(a.deliverable)
   || (b.current?.progress ?? 0) - (a.current?.progress ?? 0)
   || a.name.localeCompare(b.name);
 
+const completion = (row) => (row.completed + (row.current?.progress ?? 0)) / (row.total || 1);
+
+const byCompletion = (a, b) => Number(!a.current) - Number(!b.current)
+  || completion(b) - completion(a)
+  || Number(b.deliverable) - Number(a.deliverable)
+  || a.name.localeCompare(b.name);
+
 const CHAINS = { hunt: huntChains, boss: bossChains, gear: gearChains };
+
+const SORTS = { hunt: byCompletion };
 
 export const codexSection = ({ dataset, section, codex, hunt = null }) => {
   const drops = huntDrops(dataset, hunt);
-  const rows = (CHAINS[section]?.(dataset) ?? []).map((chain) => chainProgress(chain, codex, drops)).sort(byCloseness);
+  const rows = (CHAINS[section]?.(dataset) ?? []).map((chain) => chainProgress(chain, codex, drops)).sort(SORTS[section] ?? byCloseness);
   return {
     section,
     read: Boolean(codex),

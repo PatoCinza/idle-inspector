@@ -85,7 +85,11 @@ const missingItem = (rarities, section) => (item) => {
 };
 
 const missingList = (rarities, section) => (row) => (row.current
-  ? row.current.items.filter((item) => item.remaining > 0).map(missingItem(rarities, section)).join(' · ')
+  ? row.current.items
+    .filter((item) => item.remaining > 0)
+    .sort((a, b) => Number(b.deliverable) - Number(a.deliverable))
+    .map(missingItem(rarities, section))
+    .join(' · ')
   : '—');
 
 const rowClass = (row) => (!row.current ? 'dim' : row.deliverable ? 'deliverable' : '');
