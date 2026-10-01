@@ -4,7 +4,6 @@ import { extensionStorage } from './storage.js';
 import { mountOverlay } from './overlay.js';
 import { readParty, readCharmCards } from '../../src/dom/reader.js';
 import { slotsFromCards } from '../../src/dom/charms.js';
-import { readCharmAnalyzer } from '../../src/dom/analyzer.js';
 import { readSummary } from '../../src/dom/summary.js';
 
 const UI_KEY = 'blp.ui';
@@ -27,8 +26,6 @@ const readPartyAndCharms = async () => {
   if (members.length) await bridge.dispatch({ type: 'party', members });
   const cards = await readCharmCards({ doc: document, wait });
   if (cards) await bridge.dispatch({ type: 'charms', slots: slotsFromCards(dataset, cards) });
-  const stats = readCharmAnalyzer({ doc: document, dataset });
-  if (stats) await bridge.dispatch({ type: 'charmStats', stats });
   return readSummary({ members, cards });
 };
 

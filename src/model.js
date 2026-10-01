@@ -99,6 +99,9 @@ export const totals = (rows) => ({
   total: sum(rows.map((r) => r.value)),
 });
 
+export const scavengeGoldPerHour = ({ monster, tier, ...context }) => totals(huntLoot(context).filter((row) => row.monster === monster)).currency
+  * charmValue(context.dataset, 'scavenge', tier);
+
 export const LOOT_CHARMS = ['gut', 'scavenge'];
 
 const lootAssignments = (keys, available) => {

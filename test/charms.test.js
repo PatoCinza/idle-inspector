@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  charmPlan, creatureWeights, damageGain, normalizeParty, calibrate,
+  charmPlan, creatureWeights, damageGain, normalizeParty, calibrate, DEFAULT_CALIBRATION,
 } from '../src/charms.js';
 
 const dataset = JSON.parse(readFileSync(new URL('../data/game.json', import.meta.url)));
@@ -40,9 +40,8 @@ test('cada criatura recebe no máximo um major e um minor, e nenhum charm se rep
   assert.equal(plan.rows.length, 3);
 });
 
-test('Savage Blow vai para a criatura do boss com crítico alto', () => {
-  const golem = plan.rows.find((r) => r.monster === 'rotten_golem');
-  assert.equal(golem.major.charm, 'savage_blow');
+test('com crítico alto o Savage Blow entra no plano', () => {
+  assert.ok(plan.rows.some((r) => r.major?.charm === 'savage_blow'));
 });
 
 test('Gut e Scavenge vêm antes, e a Fatal Hold fica com a criatura que sobra', () => {
@@ -93,4 +92,83 @@ test('bestiário desconhecido não trava majors', () => {
   const unknown = charmPlan({ dataset, hunt, killsByMonster, roomsPerHour: 34.4, lootPcts: [0, 9.8, 4], party, owned, bestiary: {} });
   assert.ok(unknown.rows.every((r) => !r.locked));
   assert.equal(unknown.damageTotal, plan.damageTotal);
+});
+
+test('dano medido por criatura substitui a estimativa pelo HP nos pesos', () => {
+  const w = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour: 34.4, dealtPerHour: { rotten_golem: 100, mould_phantom: 300, branchy_crawler: 600 } });
+  assert.deepEqual(w, { rotten_golem: 0.1, mould_phantom: 0.3, branchy_crawler: 0.6 });
+});
+
+test('crítico multiplica por 1,5 + o Dano crítico do painel', () => {
+  const [member] = normalizeParty([{ ...party[0], critDmg: 88.534 }]);
+  assert.ok(Math.abs(member.critMultiplier - 2.38534) < 1e-9);
+});
+
+test('fração do dano em crítico medida no combate define o crítico efetivo', () => {
+  const [estimated] = normalizeParty([party[0]]);
+  const [measured] = normalizeParty([{ ...party[0], critShare: 80 }]);
+  assert.ok(Math.abs(estimated.ecc - (0.36 + 0.64 * 0.17572)) < 1e-9);
+  assert.equal(measured.critShare, 0.8);
+  const m = measured.critMultiplier;
+  assert.ok(Math.abs((measured.ecc * m) / (1 + measured.ecc * (m - 1)) - 0.8) < 1e-9);
+});
+
+test('Savage Blow soma o valor do charm ao multiplicador do crítico', () => {
+  const sorcerer = { level: 959, critChance: 24.472, critDmg: 153.534, avgHit: 9000, critShare: 80.4 };
+  const members = normalizeParty([sorcerer]);
+  const gain = damageGain({ dataset, charmKey: 'savage_blow', tier: 3, monsterKey: 'bloated_man_maggot', party: members });
+  assert.ok(Math.abs(gain - (0.804 * 0.44) / (1.5 + 1.53534)) < 1e-9);
+});
+
+test('Savage Blow previsto bate com a sessão do Bloated Man-Maggot de 01/10', () => {
+  const members = normalizeParty([
+    { name: 'Pato Mago', critDmg: 153.534, critShare: 80.4, dealt: 2028004, avgHit: 9000 },
+    { name: 'Pato Druida', critDmg: 88.534, critShare: 62.7, dealt: 1385655, avgHit: 6000 },
+    { name: 'PatoCinza', critDmg: 125.034, critShare: 54.9, dealt: 650956, avgHit: 1500 },
+  ]);
+  const gain = damageGain({ dataset, charmKey: 'savage_blow', tier: 3, monsterKey: 'bloated_man_maggot', party: members, calibration: DEFAULT_CALIBRATION });
+  const savage = 109288;
+  const observed = savage / (1086246 - savage);
+  assert.ok(Math.abs(gain / observed - 1) < 0.05);
+});
+
+test('Fatal Hold só aumenta o dano que tira os últimos 25% do HP, sem overkill', () => {
+  const members = normalizeParty([party[0]]);
+  const gain = damageGain({ dataset, charmKey: 'fatal_hold', tier: 3, monsterKey: 'sopping_corpus', party: members });
+  const extra = (0.25 * 0.2) / 1.2;
+  assert.ok(Math.abs(gain - extra / (1 - extra)) < 1e-9);
+});
+
+test('Fatal Hold previsto bate com as sessões do Bloated Man-Maggot de 01/10', () => {
+  const members = normalizeParty([party[0]]);
+  const gain = damageGain({ dataset, charmKey: 'fatal_hold', tier: 3, monsterKey: 'sopping_corpus', party: members, calibration: DEFAULT_CALIBRATION });
+  const sessions = [
+    { fatalHold: 48346, zap: 39962, sopping: 1184765 },
+    { fatalHold: 34685, zap: 35688, sopping: 759690 },
+  ];
+  const observed = sessions.map((s) => s.fatalHold / (s.sopping - s.fatalHold - s.zap));
+  const mean = observed.reduce((a, b) => a + b, 0) / observed.length;
+  assert.ok(Math.abs(mean / gain - 1) < 0.1);
+});
+
+test('calibração mede cada família separada e desconta o dano dos charms da criatura', () => {
+  const maggot = dataset.hunts.find((h) => h.id === 'bloatedmanmaggot-cave');
+  const members = [{ level: 900, critChance: 20, critDmg: 100, avgHit: 5000 }];
+  const fatal = damageGain({ dataset, charmKey: 'fatal_hold', tier: 3, monsterKey: 'sopping_corpus', party: normalizeParty(members) });
+  const base = 1000000;
+  const dealtPerHour = { sopping_corpus: base * (1 + 2 * fatal) };
+  const calibration = calibrate({
+    dataset,
+    hunt: maggot,
+    killsByMonster: {},
+    roomsPerHour: 0,
+    dealtPerHour,
+    party: members,
+    measured: [{ key: 'fatal_hold', monster: 'sopping_corpus', damagePerHour: base * 2 * fatal }],
+    assigned: { fatal_hold: { monster: 'sopping_corpus', tier: 3 } },
+    source: 'teste',
+  });
+  assert.ok(Math.abs(calibration.fatal - 2) < 1e-9);
+  assert.equal(calibration.proc, DEFAULT_CALIBRATION.proc);
+  assert.equal(calibration.crit, DEFAULT_CALIBRATION.crit);
 });

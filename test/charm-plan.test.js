@@ -57,3 +57,46 @@ test('render escapa nomes e mostra a mensagem de bloqueio', () => {
   const html = renderCharms({ ...table, rows: [{ ...table.rows[0], name: '<b>x</b>' }] });
   assert.ok(!html.includes('<b>x</b>'));
 });
+
+test('tempo em avatar medido entra no plano e aparece no resumo', () => {
+  const procs = { ms: 60000, avatar: [{ name: 'm', vocation: 'sorcerer', ms: 30000 }] };
+  const without = charmTable(base);
+  const withProcs = charmTable({ ...base, procs });
+  assert.deepEqual(withProcs.members.map((m) => m.avatarUptime), [50, null, null]);
+  assert.match(renderCharms(withProcs), /m · avatar 50%/);
+  assert.match(renderCharms(without), /Combate ainda não medido/);
+});
+
+test('avatar medido aumenta o ganho previsto do Savage Blow', () => {
+  const procs = { ms: 60000, avatar: party.map(({ name }) => ({ name, ms: 30000 })) };
+  const charmSlots = { ...slots, [idOf('savage_blow')]: { tier: 3 } };
+  const without = charmTable({ ...base, charmSlots });
+  const withProcs = charmTable({ ...base, charmSlots, procs });
+  assert.ok(withProcs.damageTotal > without.damageTotal);
+});
+
+test('combate medido entra no plano: fração de dano, golpe, crítico e dano por criatura', () => {
+  const party3 = [{ ...member, name: 'm', vocation: 'sorcerer' }, { ...member, name: 'k', vocation: 'knight' }, { ...member, name: 'd', vocation: 'druid' }];
+  const combat = {
+    members: { sorcerer: { hits: 100, dealt: 600000, crits: 60, critDealt: 480000 }, knight: { hits: 100, dealt: 100000, crits: 10, critDealt: 25000 }, druid: { hits: 100, dealt: 300000, crits: 40, critDealt: 180000 } },
+    foes: { [dataset.monsters[hunt.monsters[0]].name]: 900000, [dataset.monsters[hunt.monsters[1]].name]: 100000 },
+  };
+  const table = charmTable({ ...base, party: party3, combat });
+  assert.deepEqual(table.members.map((m) => [m.name, m.share, m.avgHit, m.critShare]), [['m', 0.6, 6000, 80], ['k', 0.1, 1000, 25], ['d', 0.3, 3000, 60]]);
+  assert.ok(table.damageMeasured);
+  assert.equal(table.estimatedHit, false);
+  const weight = (key) => table.rows.find((r) => r.monster === key).weight;
+  assert.ok(weight(hunt.monsters[0]) > weight(hunt.monsters[1]));
+  assert.match(renderCharms(table), /m · 60% do dano · golpe 6\.000 · 80% do dano em crítico · avatar —/);
+  assert.match(renderCharms(table), /medido no combate/);
+});
+
+test('Scavenge medido aparece ao lado do previsto pelo modelo de loot', () => {
+  const stats = { ms: 3600000, rows: [{ id: idOf('scavenge'), n: 0, v: 500000 }] };
+  const table = charmTable({ ...base, charmSlots: { ...slots, [idOf('scavenge')]: { tier: 3, monsterKey: hunt.monsters[0] } }, charmStats: stats });
+  assert.equal(table.scavenge.monster, dataset.monsters[hunt.monsters[0]].name);
+  assert.equal(table.scavenge.measured, 500000);
+  assert.ok(table.scavenge.predicted > 0);
+  assert.match(renderCharms(table), /Scavenge em .+: medido .+\/h · previsto .+\/h/);
+  assert.equal(charmTable(base).scavenge, null);
+});

@@ -41,6 +41,8 @@ npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 
 O hook do WebSocket roda no mundo MAIN em `document_start` (`extension/page/hook.js`) e fala com o content script por `window.postMessage`. O estado da janela de medição fica em `storage.local`; ao recarregar a aba, o tempo e o progresso offline não entram na medição.
 
+O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) e cada golpe da party (`combatlog`: dano, crítico e criatura atingida). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico e bônus de loot de cada membro e as cartas da janela de Charms.
+
 ## Experimento A/B (ex.: Adrenaline Burst)
 
 Fica fora do site: é uma ferramenta de linha de comando que compara blocos de hunt com distribuições de charms diferentes.
@@ -88,6 +90,8 @@ npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.mi
 | `src/extract.js` | Acha e avalia os literais do bundle (monstros, hunts, charms, preços, multiplicadores especiais) |
 | `src/model.js` | Modelo de loot em funções puras: drops/h, valor por monstro, planos de Gut/Scavenge, bestiário |
 | `src/charms.js` | Plano de charms: majors de dano por criatura, Gut/Scavenge pelo loot, Fatal Hold na criatura que sobra |
+| `src/avatar.js` | Tempo em avatar de cada membro a partir do `procstats` |
+| `src/combat.js` | Agrega o `combatlog`: dano, golpes e críticos por vocação, dano por criatura |
 | `src/payload.js` | Decodifica o código do coletor em entradas do modelo |
 | `src/collector.js` | Script de console |
 | `src/experiment.js` | Estatística do A/B: tempos de sala, waves, primeiro golpe, intervalos de Welch |
@@ -112,17 +116,25 @@ Na calibração, as moedas bateram em 1,00× e os itens unitários ficaram dentr
 
 - Cada criatura recebe no máximo um major e um minor, e cada charm vai para uma criatura só.
 - Major só entra em criatura com o bestiário completo. Para as outras, o plano mostra quanto falta, em horas, e quanto dano o major renderia depois de completar. Sem dados de bestiário (sem coleta), nenhuma criatura é bloqueada.
-- O peso de cada criatura é o HP que a party tira dela por hora. O boss da sala entra com 3× o HP na criatura dele, então os charms dela também valem no boss.
+- O peso de cada criatura é o dano que a party causa nela por hora, medido no `combatlog`. Antes de haver combate medido, usa o HP das kills: o boss da sala entra com 3× o HP na criatura dele, então os charms dela também valem no boss.
 - Majors de dano são distribuídos para maximizar o dano total da hunt (programação dinâmica sobre criaturas × charms).
   - Procs elementais: chance × min(2× level, 5% do HP) × (1 − resistência) ÷ golpe médio.
-  - Savage Blow e Low Blow: ganho no dano esperado com o crítico de cada personagem. O crítico efetivo inclui o tempo na forma avatar (15 s em que todo golpe crita), que é o que faz o Savage Blow render tanto.
-  - O modelo é calibrado com o dano real dos charms: um fator para procs e outro para crítico. Sem coleta, usa os fatores medidos na hunt Infernal Demon (procs ×1,11, crítico ×1,84), com os quais o plano reproduz a distribuição que funciona no jogo.
+  - Crítico: um golpe crítico multiplica o dano por 1,5 + o "Dano crítico" do painel (medido em 01/10 comparando golpes críticos e normais da mesma magia: Druida 2,39× com +88,5%, Mago 3,0× com +153,5%).
+  - Savage Blow: soma o valor do charm (44% no tier 3) a esse multiplicador. O ganho é a fração do dano que sai em crítico × valor ÷ multiplicador. A fração do dano em crítico é medida no `combatlog` (a partir de 30 golpes); sem isso, vem do crítico do painel somado ao tempo na forma avatar (15 s em que todo golpe crita, medido pelo `procstats`).
+  - Low Blow: chance de crítico a mais fora do avatar, com o mesmo multiplicador.
+  - Golpe médio e fração do dano de cada membro vêm do `combatlog`.
+  - Fatal Hold: aumenta só o dano que tira os últimos 25% do HP, e o golpe final não passa do HP que resta. O dano a mais é 25% × valor ÷ (1 + valor) do HP, ou 4,2% no tier 3. Nas duas sessões do Bloated Man-Maggot (01/10), o medido ficou 1% e 16% acima do previsto.
+  - Carnage: dano da explosão (o menor entre 15% do HP e 6× o level) por kill, ainda sem medição.
+  - O modelo é calibrado com o dano real dos charms, com um fator por família: procs, crítico, Fatal Hold e Carnage. O observado é o dano do charm sobre o dano na criatura sem os charms medidos nela. Sem coleta, usa procs ×1,11 (Infernal Demon, 27/09) e 1,0 nas outras: o Savage Blow e a Fatal Hold do Bloated Man-Maggot (01/10) bateram com a fórmula.
+- Scavenge: a aba Charms mostra o ouro a mais medido pelo Charm Analyzer ao lado do previsto pelo modelo de loot (moedas da criatura × valor do charm, com o ritmo de kills da janela).
 - Minors: Gut e Scavenge primeiro, pelo loot; a Fatal Hold vai para a criatura que sobrar.
 
 ## Limitações conhecidas
 
 - **Itens empilháveis** usam a média entre 1 e o máximo. A great spirit potion veio ~22% abaixo disso.
-- **Sem o coletor, o golpe médio é estimado** (3,2× o level); a calibração compensa parte do erro.
+- **Antes de haver combate medido, o golpe médio é estimado** (3,2× o level); a calibração compensa parte do erro.
+- **Golpe médio e crítico medidos incluem os procs de charm**, que aparecem no `combatlog` como golpes sem crítico. Isso puxa a fração do dano em crítico um pouco para baixo (os procs são poucos por cento do dano).
+- **Procs elementais ainda são multiplicados pelo crítico do painel**, mas no `combatlog` eles nunca critam. O fator de procs (×1,11) foi ajustado com essa suposição e precisa ser medido de novo.
 - **Codex:** só o Codex de domínio da hunt. Os de boss e de equipamento ainda não entram.
 - **Hunts limitadas pelo spawn** não ganham kills/h com mais dano.
 

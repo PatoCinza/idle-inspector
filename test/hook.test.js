@@ -34,8 +34,51 @@ test('mensagem charms emite os slots', () => {
 test('mensagens que não interessam são ignoradas', () => {
   const { capture, events } = setup();
   capture.incoming(roomData('fx', [{ t: 'atk' }]));
-  capture.incoming(roomData('charmstats', { ms: 10, rows: [] }));
+  capture.incoming(roomData('log', { text: 'oi' }));
   assert.deepEqual(events, []);
+});
+
+test('charmstats vira o Charm Analyzer sem ler o DOM', () => {
+  const { capture, events } = setup();
+  capture.incoming(roomData('charmstats', { ms: 90155, rows: [{ id: 3, n: 15, v: 34988 }, { id: 19, n: 0, v: 96643 }] }));
+  capture.incoming(roomData('charmstats', { ms: 0, rows: [] }));
+  assert.deepEqual(events, [{ type: 'charmStats', stats: { ms: 90155, rows: [{ id: 3, n: 15, v: 34988 }, { id: 19, n: 0, v: 96643 }] }, t: 1234 }]);
+});
+
+const hit = (voc, amount) => ({ k: 'dealt', voc, foe: { kind: 'mob', name: 'Troll' }, amount, el: 'physical', crit: false, fatal: false, killed: false });
+
+test('combatlog é agregado em lotes de 5 s sem perder golpes', () => {
+  let clock = 0;
+  const events = [];
+  const capture = createCapture({ emit: (event) => events.push(event), now: () => clock });
+  [[0, 10], [1000, 20], [3000, 30], [5000, 40], [6000, 50]].forEach(([t, amount]) => { clock = t; capture.incoming(roomData('combatlog', [hit('knight', amount)])); });
+  assert.deepEqual(events.map((e) => [e.t, e.combat.members.knight]), [[0, { hits: 1, dealt: 10, crits: 0, critDealt: 0 }], [5000, { hits: 3, dealt: 90, crits: 0, critDealt: 0 }]]);
+});
+
+test('combatlog sem dano causado não emite', () => {
+  const { capture, events } = setup();
+  capture.incoming(roomData('combatlog', [{ k: 'potion', voc: 'druid', amount: 800, mana: true }]));
+  assert.deepEqual(events, []);
+});
+
+const procstats = (ms) => roomData('procstats', {
+  ms,
+  party: 1,
+  rows: [{ k: 'transcendence', n: 1, v: 15000, by: [{ name: 'Pato Mago', vocation: 'sorcerer', n: 1, v: 15000 }] }],
+});
+
+test('procstats emite o tempo em avatar de cada membro', () => {
+  const { capture, events } = setup();
+  capture.incoming(procstats(60000));
+  assert.deepEqual(events, [{ type: 'procs', procs: { ms: 60000, avatar: [{ name: 'Pato Mago', vocation: 'sorcerer', ms: 15000 }] }, t: 1234 }]);
+});
+
+test('procstats chega várias vezes por segundo e é emitido no máximo a cada 5 s', () => {
+  let clock = 0;
+  const events = [];
+  const capture = createCapture({ emit: (event) => events.push(event), now: () => clock });
+  [0, 1000, 4999, 5000, 9000, 10000].forEach((t) => { clock = t; capture.incoming(procstats(t + 1)); });
+  assert.deepEqual(events.map((e) => e.t), [0, 5000, 10000]);
 });
 
 test('resetstats do Hunt Analyzer e do Loot Analyser zera o loot da janela', () => {

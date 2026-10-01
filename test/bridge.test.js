@@ -87,3 +87,28 @@ test('dispatch aplica eventos internos como a party lida', async () => {
   await bridge.dispatch({ type: 'party', members: [{ name: 'Pato Mago', lootPct: 9.8 }] });
   assert.equal(bridge.getState().party.members[0].lootPct, 9.8);
 });
+
+test('procs do hook ficam no estado e sobrevivem ao reload', async () => {
+  const storage = fakeStorage();
+  const first = setup(storage);
+  await first.bridge.ready;
+  const procs = { ms: 60000, avatar: [{ name: 'Pato Mago', vocation: 'sorcerer', ms: 15000 }] };
+  first.post({ type: 'procs', t: 0, procs });
+  await first.bridge.flush();
+  const second = setup(storage);
+  await second.bridge.ready;
+  assert.deepEqual(second.bridge.getState().procs, procs);
+});
+
+test('combate acumula na janela e zera quando a janela reinicia', async () => {
+  const { bridge, post } = setup();
+  await bridge.ready;
+  const combat = { members: { knight: { hits: 2, dealt: 50, crits: 1 } }, foes: { Troll: 50 } };
+  post(snapshot(0, 10, 0));
+  post({ type: 'combat', t: 1, combat });
+  post({ type: 'combat', t: 2, combat });
+  post(snapshot(MIN, 15, 5));
+  assert.deepEqual(bridge.getState().combat.members.knight, { hits: 4, dealt: 100, crits: 2 });
+  post({ type: 'reset', reason: 'analyzer', t: 2 * MIN, loot: {} });
+  assert.equal(bridge.getState().combat, null);
+});

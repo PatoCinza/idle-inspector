@@ -91,6 +91,8 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       party: app.party?.members ?? null,
       charmSlots: app.charmSlots,
       charmStats: app.charmStats,
+      procs: app.procs ?? null,
+      combat: app.combat ?? null,
       bestiary: app.session.last?.bestiary ?? null,
     })),
     bestiary: (window) => renderBestiary(bestiaryTable({ dataset, window, counts: app.session.last?.bestiary ?? null })),

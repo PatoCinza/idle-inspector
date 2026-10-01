@@ -80,9 +80,27 @@ const lootRow = (plan, index) => `<tr class="${index === 0 ? 'bottleneck' : ''}"
   <td>${escapeHtml(plan.gut ?? '—')}</td><td>${escapeHtml(plan.scavenge ?? '—')}</td><td class="n">${formatGold(plan.total)}/h</td>
 </tr>`;
 
+const memberLine = (member) => [
+  member.name,
+  member.share === null ? null : `${formatPercent(member.share)} do dano`,
+  member.avgHit === null ? null : `golpe ${formatCount(member.avgHit)}`,
+  member.critShare === null ? null : `${formatPercent(member.critShare / 100)} do dano em crítico`,
+  `avatar ${member.avatarUptime === null ? '—' : formatPercent(member.avatarUptime / 100)}`,
+].filter(Boolean).join(' · ');
+
+const partyLines = (members = []) => (members.some((m) => m.share !== null || m.avatarUptime !== null)
+  ? members.map(memberLine)
+  : ['Combate ainda não medido: golpe e crítico estimados pelo level e pelo painel de status.']);
+
+const scavengeLine = (check) => (check
+  ? `Scavenge em ${check.monster}: medido ${formatGold(check.measured)}/h · previsto ${formatGold(check.predicted)}/h${check.predicted > 0 ? ` (${formatCount(check.measured / check.predicted)}×)` : ''}.`
+  : '');
+
 const summary = (table) => [
   table.currentDamage === null ? '' : `Dano atual dos majors e Fatal Hold: ${signed(table.currentDamage)} · plano: ${signed(table.damageTotal)}.`,
-  table.estimatedHit ? 'Golpe médio estimado (sem procs medidos): leia o Charm Analyzer depois de alguns minutos.' : '',
+  ...partyLines(table.members),
+  scavengeLine(table.scavenge),
+  table.estimatedHit ? 'Golpe médio estimado pelo level: aguarde alguns minutos de combate.' : '',
 ].filter(Boolean).map((line) => `<p class="status">${escapeHtml(line)}</p>`).join('');
 
 export const renderCharms = (table) => {
@@ -90,7 +108,7 @@ export const renderCharms = (table) => {
   return `${summary(table)}
     <div class="scroll plans">
       <table>
-        <thead><tr><th>Criatura</th><th class="n">HP na hunt</th><th>Major</th><th>Minor</th><th>Equipado</th></tr></thead>
+        <thead><tr><th>Criatura</th><th class="n">Dano na hunt</th><th>Major</th><th>Minor</th><th>Equipado</th></tr></thead>
         <tbody>${table.rows.map(charmRow).join('')}</tbody>
       </table>
       <h3>Gut e Scavenge</h3>
@@ -99,5 +117,5 @@ export const renderCharms = (table) => {
         <tbody>${table.lootPlans.map(lootRow).join('')}</tbody>
       </table>
     </div>
-    <p class="foot">Dano calibrado com ${escapeHtml(table.calibration.source ?? 'uma medição de referência')} (procs ×${formatCount(table.calibration.proc)}, crítico ×${formatCount(table.calibration.crit)}). Major só entra em criatura com o bestiário completo. Gut e Scavenge são escolhidos primeiro pelo loot.</p>`;
+    <p class="foot">Dano calibrado com ${escapeHtml(table.calibration.source ?? 'uma medição de referência')} (procs ×${formatCount(table.calibration.proc)}, crítico ×${formatCount(table.calibration.crit)}, Fatal Hold ×${formatCount(table.calibration.fatal)}). Dano na hunt ${table.damageMeasured ? 'medido no combate' : 'estimado pelo HP das kills'}. Major só entra em criatura com o bestiário completo. Gut e Scavenge são escolhidos primeiro pelo loot.</p>`;
 };

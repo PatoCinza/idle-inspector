@@ -8,11 +8,17 @@ const PER_HIT = new Set([...ELEMENTAL, 'overpower', 'overflux']);
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 
-export const AVATAR_MS = 15000;
-
 export const estimateAvgHit = (level) => Math.max(1, (level ?? 0) * 3.2);
 
 export const effectiveCrit = ({ critChance, avatarUptime }) => avatarUptime + (1 - avatarUptime) * critChance;
+
+export const CRIT_BASE = 0.5;
+
+export const critMultiplier = (critDmg) => 1 + CRIT_BASE + critDmg;
+
+const critShareOf = (ecc, multiplier) => (ecc * multiplier) / (1 + ecc * (multiplier - 1));
+
+const eccOf = (critShare, multiplier) => critShare / (multiplier - critShare * (multiplier - 1));
 
 export const normalizeParty = (party, fallbackHit = null) => {
   const dealt = party.map((p) => p.dealt ?? 0);
@@ -24,10 +30,15 @@ export const normalizeParty = (party, fallbackHit = null) => {
       critDmg: (p.critDmg ?? 0) / 100,
       avatarUptime: Math.min(1, (p.avatarUptime ?? 0) / 100),
     };
+    const multiplier = critMultiplier(member.critDmg);
+    const measuredShare = Number.isFinite(p.critShare) ? p.critShare / 100 : null;
+    const ecc = measuredShare === null ? effectiveCrit(member) : eccOf(measuredShare, multiplier);
     const measured = p.avgHit > 0 ? p.avgHit : fallbackHit;
     return {
       ...member,
-      ecc: effectiveCrit(member),
+      ecc,
+      critMultiplier: multiplier,
+      critShare: measuredShare ?? critShareOf(ecc, multiplier),
       avgHit: measured > 0 ? measured : estimateAvgHit(p.level),
       estimatedHit: !(measured > 0),
       share: total > 0 ? dealt[i] / total : 1 / party.length,
@@ -37,7 +48,6 @@ export const normalizeParty = (party, fallbackHit = null) => {
 
 const memberGain = (key, value, monster, member) => {
   const hp = monster.hp;
-  const critFactor = 1 + member.ecc * member.critDmg;
   const procCrit = 1 + member.critChance * member.critDmg;
   if (ELEMENTAL.has(key)) {
     const resist = monster.resist?.[monster.charmElement] ?? 0;
@@ -45,22 +55,28 @@ const memberGain = (key, value, monster, member) => {
   }
   if (key === 'overpower') return (value * Math.min(0.08 * hp, 0.05 * (member.maxHp ?? 0)) * procCrit) / member.avgHit;
   if (key === 'overflux') return (value * Math.min(0.08 * hp, 0.025 * (member.maxMana ?? 0)) * procCrit) / member.avgHit;
-  if (key === 'savage_blow') return member.ecc > 0 ? (member.ecc * value) / critFactor : 0;
+  if (key === 'savage_blow') return (member.critShare * value) / member.critMultiplier;
   if (key === 'low_blow') {
     if (member.critChance <= 0) return 0;
     const added = Math.min(value, 1 - member.critChance) * (1 - member.avatarUptime);
-    return (added * member.critDmg) / critFactor;
+    const extra = member.critMultiplier - 1;
+    return (added * extra) / (1 + member.ecc * extra);
   }
   if (key === 'carnage') return (value * Math.min(0.15 * hp, 6 * member.level)) / hp;
-  if (key === 'fatal_hold') return value * LOW_HP_SHARE;
+  if (key === 'fatal_hold') {
+    const extra = (LOW_HP_SHARE * value) / (1 + value);
+    return extra / (1 - extra);
+  }
   return 0;
 };
 
-const hpPerHour = ({ dataset, hunt, killsByMonster, roomsPerHour = 0 }, key) => {
+const estimatedHpPerHour = ({ dataset, hunt, killsByMonster, roomsPerHour = 0 }, key) => {
   const hp = dataset.monsters[key]?.hp ?? 0;
   const kills = killsByMonster[key] ?? (key === hunt.bossKey ? roomsPerHour : 0);
   return hp * kills + (key === hunt.bossKey ? hp * roomsPerHour * ((dataset.bossWave?.hpMult ?? 3) - 1) : 0);
 };
+
+const hpPerHour = (context, key) => context.dealtPerHour?.[key] ?? estimatedHpPerHour(context, key);
 
 export const creatureWeights = (context) => {
   const raw = creatures(context.hunt).map((key) => [key, hpPerHour(context, key)]);
@@ -68,11 +84,23 @@ export const creatureWeights = (context) => {
   return Object.fromEntries(raw.map(([key, w]) => [key, w / total]));
 };
 
-export const familyOf = (key) => (PER_HIT.has(key) ? 'proc' : key === 'savage_blow' || key === 'low_blow' ? 'crit' : null);
+const FAMILIES = {
+  ...Object.fromEntries([...PER_HIT].map((key) => [key, 'proc'])),
+  savage_blow: 'crit',
+  low_blow: 'crit',
+  fatal_hold: 'fatal',
+  carnage: 'carnage',
+};
 
-export const NO_CALIBRATION = { proc: 1, crit: 1, source: null };
+export const familyOf = (key) => FAMILIES[key] ?? null;
 
-export const DEFAULT_CALIBRATION = { proc: 1.11, crit: 1.84, source: 'Infernal Demon, 27/09 (15 min, Freeze, Divine Wrath e Savage Blow)' };
+export const NO_CALIBRATION = { proc: 1, crit: 1, fatal: 1, carnage: 1, source: null };
+
+export const DEFAULT_CALIBRATION = {
+  ...NO_CALIBRATION,
+  proc: 1.11,
+  source: 'Infernal Demon, 27/09 (procs) e Bloated Man-Maggot, 01/10 (Savage Blow e Fatal Hold)',
+};
 
 export const damageGain = ({ dataset, charmKey, tier, monsterKey, party, calibration = NO_CALIBRATION }) => {
   const charm = dataset.charms.find((c) => c.key === charmKey);
@@ -84,24 +112,29 @@ export const damageGain = ({ dataset, charmKey, tier, monsterKey, party, calibra
 
 const geometricMean = (xs) => Math.exp(sum(xs.map(Math.log)) / xs.length);
 
-export const calibrate = ({ dataset, hunt, killsByMonster, roomsPerHour, party, measured, assigned, fallbackHit = null, source, base = DEFAULT_CALIBRATION }) => {
+const charmDamageOn = (measured, monster) => sum(measured
+  .filter((m) => familyOf(m.key) && m.monster === monster)
+  .map((m) => m.damagePerHour));
+
+export const calibrate = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, party, measured, assigned, fallbackHit = null, source, base = DEFAULT_CALIBRATION }) => {
   const members = normalizeParty(party, fallbackHit);
-  const context = { dataset, hunt, killsByMonster, roomsPerHour };
+  const context = { dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour };
+  const withoutCharms = (monster) => hpPerHour(context, monster) - charmDamageOn(measured, monster);
   const ratios = measured
     .filter((m) => familyOf(m.key) && m.monster && m.damagePerHour > 0 && assigned[m.key])
     .map((m) => {
-      const observed = m.damagePerHour / hpPerHour(context, m.monster);
+      const observed = m.damagePerHour / withoutCharms(m.monster);
       const predicted = damageGain({ dataset, charmKey: m.key, tier: assigned[m.key].tier ?? 3, monsterKey: m.monster, party: members });
-      return { family: familyOf(m.key), ratio: predicted > 0 ? observed / predicted : null };
+      return { family: familyOf(m.key), ratio: observed > 0 && predicted > 0 ? observed / predicted : null };
     })
     .filter((r) => r.ratio > 0);
-  const factor = (family) => {
+  if (!ratios.length) return base;
+  const factorOf = (family) => {
     const list = ratios.filter((r) => r.family === family).map((r) => r.ratio);
-    return list.length ? geometricMean(list) : null;
+    return list.length ? geometricMean(list) : base[family] ?? 1;
   };
-  const proc = factor('proc');
-  const crit = factor('crit');
-  return proc == null && crit == null ? base : { proc: proc ?? base.proc, crit: crit ?? base.crit, source, measured: ratios.length };
+  const families = Object.keys(NO_CALIBRATION).filter((key) => key !== 'source');
+  return { ...Object.fromEntries(families.map((family) => [family, factorOf(family)])), source, measured: ratios.length };
 };
 
 const bestAssignment = (keys, options) => {
@@ -125,7 +158,7 @@ const bestAssignment = (keys, options) => {
   return solve(0, 0);
 };
 
-export const measuredCharms = ({ dataset, hunt, killsByMonster, roomsPerHour, charmStats, assigned }) => {
+export const measuredCharms = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, charmStats, assigned }) => {
   if (!charmStats?.rows?.length || !(charmStats.ms > 0)) return [];
   const hours = charmStats.ms / 3600000;
   return charmStats.rows.map((row) => {
@@ -134,7 +167,7 @@ export const measuredCharms = ({ dataset, hunt, killsByMonster, roomsPerHour, ch
     const chance = charm && slot ? charmValue(dataset, charm.key, slot.tier ?? 3) : 0;
     const procsPerHour = (row.n ?? 0) / hours;
     const hitsPerHour = PER_HIT.has(charm?.key) && chance > 0 ? procsPerHour / chance : null;
-    const hp = slot ? hpPerHour({ dataset, hunt, killsByMonster, roomsPerHour }, slot.monster) : 0;
+    const hp = slot ? hpPerHour({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour }, slot.monster) : 0;
     return {
       key: charm?.key ?? String(row.id),
       name: charm?.name ?? `#${row.id}`,
@@ -167,9 +200,9 @@ const unlockGain = (keys, options, key, base) => {
   return pick ? { charm: pick.charm, huntGain: unlocked.score - base.score } : null;
 };
 
-export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, lootPcts, party, owned, bossRollsLoot, bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
+export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, lootPcts, party, owned, bossRollsLoot, bestiary = null, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
   const keys = creatures(hunt);
-  const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour });
+  const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour });
   const members = normalizeParty(party, fallbackHit);
   const ownedOf = (category) => dataset.charms
     .filter((c) => c.category === category && owned[c.key])
@@ -218,8 +251,8 @@ export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, lootPct
   };
 };
 
-export const currentDamage = ({ dataset, hunt, killsByMonster, roomsPerHour, party, assigned, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
-  const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour });
+export const currentDamage = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, party, assigned, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
+  const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour });
   const members = normalizeParty(party, fallbackHit);
   return sum(Object.entries(assigned)
     .filter(([key, a]) => a?.monster && weights[a.monster] != null && (DAMAGE_MAJORS.has(key) || DAMAGE_MINORS.has(key)))
