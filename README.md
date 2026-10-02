@@ -106,7 +106,10 @@ Fica fora do site: é uma ferramenta de linha de comando que compara blocos de h
 ```sh
 npm run compare -- experiments/*.txt
 npm run compare -- experiments/*.txt --by signature --break-even 0.6,1.9
+npm run compare -- experiments/*.txt --by charm:adrenaline_burst
 ```
+
+Só conta o charm equipado numa criatura da hunt do bloco, incluindo o boss da sala. Os que estão em criaturas de outras hunts aparecem num aviso e ficam fora da distribuição. Se um charm da hunt muda no meio do bloco, o bloco é dividido em trechos: cada sala vai para a distribuição ativa quando ela começou e terminou, e as que cruzam a troca ficam de fora. Trocas que não duram uma sala inteira são ignoradas. A extensão segue a mesma regra no `phase_charms` do PostHog, e a lista `charms` da janela marca cada charm com `in_hunt`.
 
 O coletor registra o horário de cada wave concluída, de cada sala e das kills, o tempo de cada fase medido pelo próprio jogo (o timer da run) e, pelos efeitos visuais que o servidor manda (`fx`), o primeiro ataque da party depois de cada wave e os intervalos em que ninguém ataca por mais de 1,5 s. Esse tempo parado é onde um charm de velocidade como a Adrenaline pode ajudar. A comparação mostra:
 

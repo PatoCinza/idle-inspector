@@ -63,6 +63,12 @@ export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY,
 
 export const creatures = (hunt) => [...new Set([...hunt.monsters, hunt.bossKey].filter(Boolean))];
 
+export const isHuntCreature = (dataset, huntId) => {
+  const hunt = dataset.hunts.find((h) => h.id === huntId);
+  const keys = new Set(hunt ? creatures(hunt) : []);
+  return (monsterKey) => keys.has(monsterKey);
+};
+
 export const lootKills = ({ hunt, killsByMonster, roomsPerHour = 0, bossRollsLoot = true }) =>
   Object.fromEntries(creatures(hunt).map((key) => {
     const kills = killsByMonster[key] ?? (key === hunt.bossKey ? roomsPerHour : 0);

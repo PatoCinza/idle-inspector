@@ -1,4 +1,4 @@
-import { charmPlan, currentDamage, measuredCharms, partyAvgHit, calibrate, hpPerHour } from './charms.js';
+import { charmPlan, currentDamage, measuredCharms, partyAvgHit, calibrate, hpPerHour, hasMajorInHunt } from './charms.js';
 import { charmsFromSlots } from './payload.js';
 import { withAvatar } from './avatar.js';
 import { withCombat, dealtPerHour, takenPerHour } from './combat.js';
@@ -78,7 +78,7 @@ export const charmTable = ({ dataset, window, party: readParty, charmSlots, char
   const fallbackHit = partyAvgHit(measured);
   const calibration = calibrate({ ...common, party, measured, assigned, fallbackHit, source: 'seus charms medidos' });
   const plan = charmPlan({ ...common, party, owned, bestiary, fallbackHit, calibration, objective, economy, defense });
-  const knowsMajors = Object.keys(assigned).some((key) => dataset.charms.find((c) => c.key === key)?.category === 'major');
+  const knowsMajors = hasMajorInHunt({ dataset, hunt, assigned });
   const equippedOn = (monster) => Object.entries(assigned)
     .filter(([, slot]) => slot.monster === monster)
     .map(([key]) => charmName(dataset, key));

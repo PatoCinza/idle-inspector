@@ -1,7 +1,7 @@
 import { liveWindow } from './plan.js';
 import { findHunt, rates, perHour, lootPcts, dropsTable, MIN_MINUTES } from './drops.js';
 import { charmsFromSlots } from './payload.js';
-import { partyLootFactor, monsterLoot, killChance, averageQuantity, unitValue, skippedItems } from './model.js';
+import { partyLootFactor, monsterLoot, killChance, averageQuantity, unitValue, skippedItems, isHuntCreature } from './model.js';
 import { normalizeParty, damageGain, familyOf, NO_CALIBRATION } from './charms.js';
 import { defenseOf, defensiveEffect, DEFENSIVE_MAJORS } from './defense.js';
 import { withCombat, dealtPerHour, takenPerHour } from './combat.js';
@@ -57,11 +57,12 @@ const predictedCharm = ({ dataset, charm, slot, members, defense }) => {
   return {};
 };
 
-const charmList = ({ dataset, charmSlots, members, defense }) => (charmSlots
+const charmList = ({ dataset, charmSlots, members, defense, inHunt }) => (charmSlots
   ? Object.entries(charmsFromSlots(dataset, charmSlots).assigned).map(([charm, slot]) => ({
     charm,
     tier: slot.tier,
     monster: slot.monster,
+    in_hunt: inHunt(slot.monster),
     ...predictedCharm({ dataset, charm, slot, members, defense }),
   }))
   : []);
@@ -78,8 +79,14 @@ const takenTotals = (taken) => (taken
 
 const phasesOf = (app) => (app.phases ?? []).slice(-MAX_PHASES).map((phase) => (typeof phase === 'number' ? { ms: phase, charms: null } : phase));
 
-const phaseCharms = (dataset, ids) => (ids
-  ? ids.map((id) => dataset.charms.find((c) => c.id === id)?.key ?? String(id)).sort().join(',')
+const isPlacement = (charms) => charms != null && typeof charms === 'object' && !Array.isArray(charms);
+
+const phaseCharms = (dataset, inHunt, charms) => (isPlacement(charms)
+  ? Object.entries(charms)
+    .filter(([, monster]) => inHunt(monster))
+    .map(([id]) => dataset.charms.find((c) => c.id === Number(id))?.key ?? id)
+    .sort()
+    .join(',')
   : null);
 
 const predictedLoot = (table, minutes) => Object.fromEntries(table.rows.map((row) => [row.item, round((row.perHour * minutes) / 60, 2)]));
@@ -96,6 +103,7 @@ export const huntWindowEvent = ({ dataset, app }) => {
   const taken = takenPerHour(combatArgs);
   const assigned = app.charmSlots ? charmsFromSlots(dataset, app.charmSlots).assigned : {};
   const defense = defenseOf({ dataset, takenPerHour: taken, assigned });
+  const inHunt = isHuntCreature(dataset, hunt.id);
   return {
     key: String(app.session.since?.t ?? 0),
     minutes: Math.floor(window.minutes),
@@ -110,7 +118,7 @@ export const huntWindowEvent = ({ dataset, app }) => {
         party_size: members?.length ?? null,
         party_loot_factor: round(partyLootFactor(lootPcts(members)), 4),
         party: party ? party.map(anonymousMember) : null,
-        charms: charmList({ dataset, charmSlots: app.charmSlots, members: party ? normalizeParty(party) : null, defense }),
+        charms: charmList({ dataset, charmSlots: app.charmSlots, members: party ? normalizeParty(party) : null, defense, inHunt }),
         charm_stats: charmStatsOf(dataset, app.charmStats),
         loot_observed: window.loot,
         loot_skipped: [...skipped],
@@ -123,7 +131,8 @@ export const huntWindowEvent = ({ dataset, app }) => {
         taken_per_hour: takenTotals(taken),
         supply_per_hour: roundMap(Object.fromEntries(Object.entries(window.supply ?? {}).map(([item, gold]) => [item, (gold * 60) / window.minutes]))),
         phase_ms: phasesOf(app).map((phase) => phase.ms),
-        phase_charms: phasesOf(app).map((phase) => phaseCharms(dataset, phase.charms)),
+        phase_charms: phasesOf(app).map((phase) => phaseCharms(dataset, inHunt, phase.charms)),
+        phase_charms_scope: 'hunt',
       },
     },
   };

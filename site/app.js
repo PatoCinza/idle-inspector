@@ -2,7 +2,7 @@ import {
   huntLoot, groupByItem, totals, monsterBreakdown, bestiaryPlan, codexPlan, hoursFor, evenSplit, isCurrency, creatures,
 } from '../src/model.js';
 import {
-  charmPlan, currentDamage, measuredCharms, partyAvgHit, calibrate,
+  charmPlan, currentDamage, measuredCharms, partyAvgHit, calibrate, hasMajorInHunt,
 } from '../src/charms.js';
 import { decodePayload, inputsFromPayload, mergeParty } from '../src/payload.js';
 
@@ -88,7 +88,7 @@ const model = () => {
   const items = groupByItem(rows);
   const noCharms = totals(huntLoot(common)).total;
   const currentLoot = { gut: state.assigned.gut, scavenge: state.assigned.scavenge };
-  const knowsMajors = Object.keys(state.assigned).some((key) => dataset.charms.find((c) => c.key === key)?.category === 'major');
+  const knowsMajors = hasMajorInHunt({ dataset, hunt: h, assigned: state.assigned });
   const current = Object.keys(state.assigned).length
     ? {
       loot: totals(huntLoot({ ...common, charms: currentLoot })).total,

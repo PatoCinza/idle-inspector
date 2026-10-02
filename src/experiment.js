@@ -114,29 +114,77 @@ export const idleTime = (timeline, { min, max } = IDLE_RANGE) => {
   return { total: total(gaps), betweenWaves: total(gaps.filter((g) => g.betweenWaves)), measured: Boolean(timeline.idle) };
 };
 
-export const blockStats = (payload) => {
-  const timeline = payload.timeline ?? {};
-  const kills = sum(Object.values(payload.kills ?? {}));
-  const signatures = [...new Set((timeline.charms ?? []).map(([, sig]) => sig))];
+const statsOf = (payload, timeline, kills) => ({
+  label: payload.label ?? null,
+  huntId: payload.huntId,
+  minutes: payload.minutes,
+  kills,
+  rooms: payload.rooms ?? 0,
+  killsPerHour: payload.minutes > 0 ? (kills * 60) / payload.minutes : 0,
+  roomTimes: roomDurations(timeline),
+  phaseTimes: phaseDurations(timeline),
+  since: payload.since ?? null,
+  waveGaps: split(waveGaps(timeline)),
+  engage: split(engageDelays(timeline)),
+  timed: Boolean(payload.timeline),
+  idle: idleTime(timeline),
+  charmMs: payload.charmStats?.ms ?? 0,
+  procs: Object.fromEntries((payload.charmStats?.rows ?? []).map((row) => [row.id, row.n ?? 0])),
+});
+
+const everyCreature = () => true;
+
+export const sliceTimeline = (timeline, from, to) => {
+  const within = (t) => t >= from && t < to;
+  const startsWithin = ([end, ms]) => end - ms >= from && end < to;
   return {
-    label: payload.label ?? null,
-    signature: payload.signature ?? signatures.at(-1) ?? null,
-    mixedCharms: signatures.length > 1,
-    huntId: payload.huntId,
-    minutes: payload.minutes,
-    kills,
-    rooms: payload.rooms ?? 0,
-    killsPerHour: payload.minutes > 0 ? (kills * 60) / payload.minutes : 0,
-    roomTimes: roomDurations(timeline),
-    phaseTimes: phaseDurations(timeline),
-    since: payload.since ?? null,
-    waveGaps: split(waveGaps(timeline)),
-    engage: split(engageDelays(timeline)),
-    timed: Boolean(payload.timeline),
-    idle: idleTime(timeline),
-    charmMs: payload.charmStats?.ms ?? 0,
-    procs: Object.fromEntries((payload.charmStats?.rows ?? []).map((row) => [row.id, row.n ?? 0])),
+    waves: (timeline.waves ?? []).filter(([t]) => within(t)),
+    engages: (timeline.engages ?? []).filter(within),
+    idle: timeline.idle ? timeline.idle.filter(startsWithin) : undefined,
+    rooms: (timeline.rooms ?? []).filter(([t]) => within(t)),
+    kills: (timeline.kills ?? []).filter(([t]) => within(t)),
+    phases: (timeline.phases ?? []).filter(startsWithin),
   };
+};
+
+const hasRoomSample = (timeline) => roomDurations(timeline).length + phaseDurations(timeline).length > 0;
+
+const fallbackSpan = (payload, keep) => {
+  const signature = payload.signature ?? payload.timeline?.charms?.at(-1)?.[1];
+  return [{ signature: signature == null ? null : huntSignature(signature, keep), from: 0, to: Infinity }];
+};
+
+export const charmSpans = (payload, keep = everyCreature) => {
+  const timeline = payload.timeline ?? {};
+  const marks = (timeline.charms ?? []).map(([from, signature]) => ({ from, signature: huntSignature(signature, keep) }));
+  const lasting = marks
+    .map((mark, i) => ({ ...mark, to: marks[i + 1]?.from ?? Infinity }))
+    .filter((span) => hasRoomSample(sliceTimeline(timeline, span.from, span.to)));
+  const merged = lasting.reduce((spans, span) => (spans.at(-1)?.signature === span.signature ? spans : [...spans, span]), []);
+  return merged.length
+    ? merged.map((span, i) => ({ signature: span.signature, from: i === 0 ? 0 : span.from, to: merged[i + 1]?.from ?? Infinity }))
+    : fallbackSpan(payload, keep);
+};
+
+export const blockStats = (payload, keep = everyCreature) => {
+  const spans = charmSpans(payload, keep);
+  return {
+    ...statsOf(payload, payload.timeline ?? {}, sum(Object.values(payload.kills ?? {}))),
+    signature: spans.at(-1).signature,
+    mixedCharms: spans.length > 1,
+  };
+};
+
+const spanStats = (payload, span) => {
+  const timeline = sliceTimeline(payload.timeline, span.from, span.to);
+  const end = Math.min(span.to, payload.minutes * 60000);
+  const part = { ...payload, minutes: (end - span.from) / 60000, rooms: sum(timeline.rooms.map(([, n]) => n)), charmStats: null };
+  return { ...statsOf(part, timeline, sum(timeline.kills.map(([, n]) => n))), signature: span.signature, mixedCharms: false, span: [span.from, end] };
+};
+
+export const splitBlock = (payload, keep = everyCreature) => {
+  const spans = charmSpans(payload, keep);
+  return spans.length > 1 ? spans.map((span) => spanStats(payload, span)) : [blockStats(payload, keep)];
 };
 
 export const idleShare = (blocks) => {
@@ -216,3 +264,8 @@ export const signatureDiff = (base, test) => {
   const b = signatureParts(test);
   return { removed: [...a].filter((p) => !b.has(p)), added: [...b].filter((p) => !a.has(p)) };
 };
+
+export const huntSignature = (signature, keep = everyCreature) => [...signatureParts(signature)]
+  .filter((part) => keep(part.split('>')[1]))
+  .sort()
+  .join(',');

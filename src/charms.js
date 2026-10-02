@@ -275,6 +275,9 @@ export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPe
   };
 };
 
+export const hasMajorInHunt = ({ dataset, hunt, assigned }) => Object.entries(assigned)
+  .some(([key, slot]) => dataset.charms.find((c) => c.key === key)?.category === 'major' && creatures(hunt).includes(slot?.monster));
+
 export const currentDamage = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, party, assigned, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
   const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour });
   const members = normalizeParty(party, fallbackHit);

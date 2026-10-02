@@ -21,10 +21,9 @@ const trackedCodex = (codex) => ({
 const lootFactorOf = (app, dataset) => (monster) => partyLootFactor(lootPcts(app.party?.members))
   * (1 + (dataset ? gutOn(dataset, app.charmSlots, monster) : 0));
 
-export const assignedCharmIds = (charmSlots) => Object.entries(charmSlots ?? {})
+export const charmPlacement = (charmSlots) => Object.fromEntries(Object.entries(charmSlots ?? {})
   .filter(([, slot]) => slot?.monsterKey)
-  .map(([id]) => Number(id))
-  .sort((a, b) => a - b);
+  .map(([id, slot]) => [id, slot.monsterKey]));
 
 const logOf = (app) => app.dropLog ?? initialDropLog();
 
@@ -54,7 +53,7 @@ export const reduceApp = (app, event, env = {}) => {
   if (event.type === 'combat') return { ...app, combat: mergeCombat(app.combat, event.combat) };
   if (event.type === 'xp') return { ...app, xp: (app.xp ?? 0) + event.xp };
   if (event.type === 'lootConfig') return { ...app, lootConfig: event.config };
-  if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), { ms: event.ms, charms: app.charmSlots ? assignedCharmIds(app.charmSlots) : null }] };
+  if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), { ms: event.ms, charms: app.charmSlots ? charmPlacement(app.charmSlots) : null }] };
   if (event.type === 'charms') return { ...app, charmSlots: event.slots };
   if (event.type === 'codex') {
     const codex = trackedCodex(event.codex);

@@ -38,7 +38,7 @@ test('evento da hunt não leva nomes e arredonda o level', () => {
   assert.equal(window.hunt, 'infernalmdemon-cave');
   assert.deepEqual(window.party.map((m) => m.level_bucket), [950, 950, 950]);
   const charms = Object.fromEntries(window.charms.map((c) => [c.charm, c]));
-  assert.deepEqual(charms.gut, { charm: 'gut', tier: 3, monster: 'infernal_phantom' });
+  assert.deepEqual(charms.gut, { charm: 'gut', tier: 3, monster: 'infernal_phantom', in_hunt: true });
   assert.ok(charms.savage_blow.predicted_creature_gain > 0);
   assert.ok(Math.abs(charms.parry.predicted_avoided_per_hour - (0.11 * 900 * 20) / 0.89) < 1);
   assert.ok(window.loot_value_observed_per_hour > 0 && window.loot_value_predicted_per_hour > 0);
@@ -120,7 +120,7 @@ test('o pior lote possível cabe no limite de 1 MB do relay', () => {
   const quantities = (max = 1) => Object.fromEntries(Array.from({ length: max }, (_, i) => [i + 1, 99999]));
   const everyDrop = (monster) => Object.fromEntries((monster.loot ?? []).map((entry) => [entry.name, { drops: 99999, qty: quantities(entry.max) }]));
   const monsters = Object.fromEntries(Object.entries(dataset.monsters).map(([key, monster]) => [key, { kills: 99999, factor: 99999.1234, items: everyDrop(monster) }]));
-  const everyCharm = dataset.charms.map((charm) => charm.id).slice(0, 12);
+  const everyCharm = Object.fromEntries(dataset.charms.slice(0, 12).map((charm) => [charm.id, 'infernal_phantom']));
   const app = { ...hunting(), phases: Array.from({ length: 2 * MAX_PHASES }, () => ({ ms: 123456, charms: everyCharm })), dropLog: { monsters } };
   const usage = ['drops', 'bestiary', 'codex', 'charms', 'sample', 'start'].reduce((total, tab) => countUsage(total, { type: 'tab', tab }), emptyUsage());
   const { events } = buildEvents({ dataset, app, usage });

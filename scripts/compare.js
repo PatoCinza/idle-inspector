@@ -1,12 +1,18 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { decodePayload } from '../src/payload.js';
-import { blockStats, compareGroups, groupBlocks, mean, pool, roomsFor, signatureDiff, summarize } from '../src/experiment.js';
+import { compareGroups, groupBlocks, mean, pool, roomsFor, signatureDiff, signatureParts, splitBlock, summarize } from '../src/experiment.js';
+import { isHuntCreature } from '../src/model.js';
 
 const USAGE = `Uso: node scripts/compare.js <arquivos com códigos BLP1> [opções]
 
-  --by label|signature   agrupa por rótulo do bloco ou pela distribuição de charms (padrão: label quando todos têm)
-  --base <grupo>         grupo de referência (padrão: o primeiro bloco lido)
+  --by label|signature|charm:<chave>
+                         agrupa por rótulo do bloco, pela distribuição de charms ou por ter um charm
+                         numa criatura da hunt, ex.: charm:adrenaline_burst (padrão: label quando todos têm)
+  --base <grupo>         grupo de referência (padrão: o primeiro bloco lido; em charm:, o grupo sem o charm)
+
+Só contam charms em criaturas da hunt do bloco (incluindo o boss). Quando um deles muda no meio
+do bloco, as salas são divididas pela distribuição ativa em cada trecho.
   --break-even 0.6,1.9   ganho mínimo em % para compensar (limitado por movimento, limitado por dano)
   --pause 3              descarta salas mais longas que N× a mediana (pausas, mortes, reconexões)`;
 
@@ -38,11 +44,32 @@ const CODE = /BLP1\.[A-Za-z0-9+/=]+/g;
 const texts = await Promise.all(positionals.map((path) => readFile(path, 'utf8').then((text) => ({ path, text }))));
 const payloads = texts.flatMap(({ path, text }) => (text.match(CODE) ?? []).map((code) => ({ path, payload: decodePayload(code) })));
 
-const blocks = payloads.map(({ path, payload }) => ({ ...blockStats(payload), path }));
+const knownHunt = (huntId) => dataset.hunts.some((h) => h.id === huntId);
+const keepOf = (huntId) => (knownHunt(huntId) ? isHuntCreature(dataset, huntId) : () => true);
+const parsed = payloads.map(({ path, payload }) => ({ path, payload, parts: splitBlock(payload, keepOf(payload.huntId)) }));
+const blocks = parsed.flatMap(({ path, parts }) => parts.map((part) => ({ ...part, path })));
+const nameOf = ({ path, payload }) => payload.label ?? `${path} (${new Date(payload.startedAt ?? 0).toLocaleString('pt-BR')})`;
+const outsideHunt = ({ payload }) => {
+  const seen = (payload.timeline?.charms ?? []).map(([, sig]) => sig).concat(payload.signature ?? []);
+  const keep = keepOf(payload.huntId);
+  return [...new Set(seen.flatMap((sig) => [...signatureParts(sig)]))].filter((part) => !keep(part.split('>')[1]));
+};
 const untimed = blocks.filter((b) => !b.timed);
 const hunts = [...new Set(blocks.map((b) => b.huntId))];
 const by = values.by ?? (blocks.every((b) => b.label) ? 'label' : 'signature');
-const keyOf = by === 'label' ? (b) => b.label ?? '(sem rótulo)' : (b) => b.signature ?? '(sem charms)';
+const charmKey = by.startsWith('charm:') ? by.slice('charm:'.length) : null;
+const charmId = charmKey ? dataset.charms.find((c) => c.key === charmKey)?.id : null;
+if (charmKey && charmId == null) {
+  console.error(`Charm "${charmKey}" não existe. Use a chave, ex.: adrenaline_burst.`);
+  process.exit(1);
+}
+const hasCharm = (b) => [...signatureParts(b.signature)].some((part) => part.startsWith(`${charmId}>`));
+const KEYS = {
+  label: (b) => b.label ?? '(sem rótulo)',
+  signature: (b) => b.signature ?? '(sem charms)',
+  charm: (b) => `${hasCharm(b) ? 'com' : 'sem'} ${charmName[charmId]}`,
+};
+const keyOf = KEYS[charmKey ? 'charm' : by] ?? KEYS.signature;
 const groups = groupBlocks(blocks, keyOf);
 const keys = Object.keys(groups);
 const breakEven = values['break-even'].split(',').map((v) => Number(v) / 100);
@@ -59,7 +86,7 @@ const stat = (xs) => {
 
 const describeGroup = (key, index) => ({
   key,
-  name: by === 'label' ? key : `config ${index + 1}`,
+  name: by === 'signature' ? `config ${index + 1}` : key,
   pooled: pool(groups[key], pauseFactor),
   signature: groups[key].find((b) => b.signature)?.signature,
 });
@@ -111,14 +138,19 @@ if (!blocks.length) {
 }
 if (untimed.length) console.warn(`Aviso: ${untimed.length} bloco(s) sem timeline (coletor antes da v4). Entram só em kills/h.`);
 if (hunts.length > 1) console.warn(`Aviso: blocos de hunts diferentes (${hunts.join(', ')}). A comparação só faz sentido na mesma hunt.`);
-blocks.filter((b) => b.mixedCharms).forEach((b) => console.warn(`Aviso: os charms mudaram no meio do bloco ${b.label ?? b.path}.`));
+parsed.filter(({ parts }) => parts.length > 1).forEach((block) => console.warn(`Aviso: os charms da hunt mudaram no meio do bloco ${nameOf(block)}. Ele foi dividido em ${block.parts.length} trechos e as salas que cruzam a troca ficaram de fora.`));
+parsed.filter(({ payload }) => !knownHunt(payload.huntId)).forEach((block) => console.warn(`Aviso: hunt desconhecida no bloco ${nameOf(block)}. Todos os charms contam.`));
+parsed.map((block) => [block, outsideHunt(block)]).filter(([, parts]) => parts.length)
+  .forEach(([block, parts]) => console.warn(`Fora da hunt (não contam) no bloco ${nameOf(block)}: ${parts.map(prettyPart).join(' · ')}`));
 const described = keys.map(describeGroup);
-const base = values.base ? described.find((g) => g.name === values.base || g.key === values.base) : described[0];
+const defaultBase = described.find((g) => charmKey && g.key.startsWith('sem ')) ?? described[0];
+const base = values.base ? described.find((g) => g.name === values.base || g.key === values.base) : defaultBase;
 if (!base) {
   console.error(`Grupo de referência "${values.base}" não existe. Grupos: ${described.map((g) => g.name).join(', ')}`);
   process.exit(1);
 }
 
-console.log(`${blocks.length} bloco(s) · agrupados por ${by === 'label' ? 'rótulo' : 'charms'} · hunt ${hunts.join(', ')}`);
+const BY_NAME = { label: 'rótulo', signature: 'charms na hunt' };
+console.log(`${parsed.length} bloco(s), ${blocks.length} trecho(s) · agrupados por ${BY_NAME[by] ?? `${charmName[charmId]} na hunt`} · hunt ${hunts.join(', ')}`);
 described.forEach((group) => printGroup(group, group === base));
 described.filter((g) => g !== base).forEach((test) => printComparison(base, test));
