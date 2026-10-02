@@ -24,8 +24,13 @@ export const patchChildren = (target, source) => {
   next.forEach((node, i) => patchNode(current[i], node));
 };
 
-export const patchHtml = (target, html) => {
-  const template = target.ownerDocument.createElement('template');
-  template.innerHTML = html;
-  patchChildren(target, template.content);
+export const htmlFragment = (doc, html) => {
+  const parsed = new doc.defaultView.DOMParser().parseFromString(`<!doctype html><html><head></head><body>${html}</body></html>`, 'text/html');
+  const fragment = doc.createDocumentFragment();
+  fragment.append(...[...parsed.body.childNodes].map((node) => doc.importNode(node, true)));
+  return fragment;
 };
+
+export const setHtml = (target, html) => target.replaceChildren(htmlFragment(target.ownerDocument, html));
+
+export const patchHtml = (target, html) => patchChildren(target, htmlFragment(target.ownerDocument, html));

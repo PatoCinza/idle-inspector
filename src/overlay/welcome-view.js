@@ -27,7 +27,7 @@ const checklistItem = (item) => `<li class="${item.done ? 'done' : 'todo'}">
   <span><b>${escapeHtml(item.label)}</b> <span class="dim">${escapeHtml(item.detail)}</span>${item.action ? ` <button class="ghost inline" data-action="${item.action}">${ACTIONS[item.action]}</button>` : ''}</span>
 </li>`;
 
-const TABS = [
+export const TABS = [
   {
     id: 'drops',
     name: 'Drops',
@@ -66,9 +66,9 @@ const tabCard = (tab) => `<div class="card">
   <p class="dim">${escapeHtml(tab.how)}</p>
 </div>`;
 
-const CONTROLS = [
+export const CONTROLS = [
   ['Ler party e charms', 'Abre rapidamente o painel de cada membro e a janela de Charms do jogo para ler level, bônus de loot, crítico e os charms que você tem. Use ao começar e sempre que trocar equipamento ou charms.'],
-  ['Dados', 'Mostra o que é enviado se você ligar os dados de uso anônimos e permite ligar ou desligar. Vem desligado.'],
+  ['Dados', 'Mostra o que os dados de uso anônimos enviam e permite desligar ou ligar de novo. Vem ligado, com aviso na primeira vez.'],
   ['▾', 'Recolhe ou expande o painel. Arraste a barra do título para mover; o botão da extensão na barra do navegador traz o painel de volta ao canto.'],
   ['Planejar', 'Nas abas Drops, Bestiário, Codex e Amostra, escolhe outra hunt para ver os números dela sem sair da atual.'],
 ];

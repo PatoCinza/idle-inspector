@@ -1,0 +1,12 @@
+[
+  {
+    "version": "0.2.0",
+    "date": "2026-10-02",
+    "notes": [
+      "Primeira versão distribuída para Firefox, Chrome e Opera.",
+      "Drops e valor por hora, bestiário, Codex de domínio, plano de charms e amostra de drops ao vivo, sobre o jogo.",
+      "Dados de uso anônimos ligados por padrão, com aviso na primeira vez e botão para desligar. Eles passam por um relay que não repassa o seu IP.",
+      "No Firefox, a extensão se atualiza sozinha a partir deste site."
+    ]
+  }
+]

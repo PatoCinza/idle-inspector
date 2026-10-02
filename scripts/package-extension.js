@@ -10,7 +10,7 @@ const path = (relative) => `${root}${relative}`;
 const NAME = 'baiak-loot-planner';
 const RELEASE_DIR = path('dist/release');
 const STAGING_DIR = `${RELEASE_DIR}/staging`;
-const CHROME_GUIDE = path('scripts/release/COMO-INSTALAR-CHROME.txt');
+const CHROMIUM_GUIDE = path('scripts/release/COMO-INSTALAR-CHROME-OPERA.txt');
 
 const run = (command, args, { cwd = root, input } = {}) => execFileSync(command, args, { cwd, input, encoding: 'utf8', stdio: [input ? 'pipe' : 'ignore', 'pipe', 'inherit'] });
 
@@ -28,11 +28,11 @@ const firefoxPackage = ({ dir, version }) => {
   return output;
 };
 
-const chromePackage = async ({ dir, version }) => {
+const chromiumPackage = async ({ dir, version }) => {
   const folder = `${STAGING_DIR}/${NAME}`;
   await cp(dir, folder, { recursive: true });
-  await cp(CHROME_GUIDE, `${folder}/COMO-INSTALAR.txt`);
-  const output = `${RELEASE_DIR}/${NAME}-${version}-chrome.zip`;
+  await cp(CHROMIUM_GUIDE, `${folder}/COMO-INSTALAR.txt`);
+  const output = `${RELEASE_DIR}/${NAME}-${version}-chrome-opera.zip`;
   zip({ cwd: STAGING_DIR, output, entries: [NAME] });
   return output;
 };
@@ -50,7 +50,7 @@ export const packageExtension = async () => {
   const built = Object.fromEntries((await buildExtension()).map(({ target, dir }) => [target, dir]));
   const outputs = [
     firefoxPackage({ dir: built.firefox, version }),
-    await chromePackage({ dir: built.chrome, version }),
+    await chromiumPackage({ dir: built.chrome, version }),
     sourcePackage({ version }),
   ];
   await rm(STAGING_DIR, { recursive: true, force: true });

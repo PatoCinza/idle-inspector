@@ -37,16 +37,22 @@ export const batchOf = ({ events, installId, version, now }) => {
 
 export const firefoxConsent = async (api) => {
   try {
-    return await api.permissions.contains({ data_collection: DATA_COLLECTION });
+    const { data_collection: granted } = await api.permissions.getAll();
+    return Array.isArray(granted) ? DATA_COLLECTION.every((type) => granted.includes(type)) : null;
   } catch {
     return null;
   }
 };
 
+export const storedConsent = ({ choice, noticeShown }) => (typeof choice?.granted === 'boolean' ? choice.granted : noticeShown === true);
+
 export const consentDetails = async (api) => {
   const firefox = await firefoxConsent(api);
-  const stored = (await api.storage.local.get(KEYS.consent))[KEYS.consent]?.granted === true;
-  return { firefox, stored, granted: firefox ?? stored };
+  const saved = await api.storage.local.get([KEYS.consent, KEYS.asked]);
+  const stored = storedConsent({ choice: saved[KEYS.consent], noticeShown: saved[KEYS.asked] });
+  return { firefox, stored, noticeShown: saved[KEYS.asked] === true, granted: firefox ?? stored };
 };
+
+export const needsNotice = ({ firefox, noticeShown }) => firefox === null && !noticeShown;
 
 export const consentGranted = async (api) => (await consentDetails(api)).granted;

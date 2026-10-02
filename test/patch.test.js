@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseHTML } from 'linkedom';
-import { patchHtml } from '../src/overlay/patch.js';
+import { patchHtml, setHtml, htmlFragment } from '../src/overlay/patch.js';
 
 const setup = (html) => {
   const { document } = parseHTML('<!doctype html><html><body><div id="root"></div></body></html>');
@@ -31,4 +31,22 @@ test('atributo diferente troca o elemento, estrutura diferente troca tudo', () =
   assert.equal(root.querySelector('.active').textContent, 'A');
   patchHtml(root, '<p>outra aba</p>');
   assert.equal(root.innerHTML, '<p>outra aba</p>');
+});
+
+test('setHtml monta estilo, tabela e texto escapado sem innerHTML', () => {
+  const root = setup('');
+  setHtml(root, `<style>.a { color: red }</style>${table(['&lt;b&gt;x&lt;/b&gt;'])}`);
+  assert.equal(root.querySelector('style').textContent, '.a { color: red }');
+  assert.equal(root.querySelectorAll('td').length, 1);
+  assert.equal(root.querySelector('td').textContent, '<b>x</b>');
+  assert.equal(root.querySelector('b'), null);
+  setHtml(root, '');
+  assert.equal(root.childNodes.length, 0);
+});
+
+test('o fragmento pertence ao documento de destino', () => {
+  const root = setup('');
+  const fragment = htmlFragment(root.ownerDocument, '<span>a</span><button data-action="x">b</button>');
+  assert.equal(fragment.childNodes.length, 2);
+  assert.ok([...fragment.childNodes].every((node) => node.ownerDocument === root.ownerDocument));
 });

@@ -30,16 +30,25 @@ O coletor só lê o tráfego que o jogo já recebe. Ele mede:
 
 ## Extensão (Chrome e Firefox, em desenvolvimento)
 
-Mostra a tabela de drops ao vivo num overlay sobre o jogo, sem colar script no console e sem copiar código. Só lê o tráfego que o jogo já recebe e só envia algo se você ligar os dados de uso anônimos (veja abaixo). A única interação com a página é o botão "Ler party e charms".
+Mostra a tabela de drops ao vivo num overlay sobre o jogo, sem colar script no console e sem copiar código. Só lê o tráfego que o jogo já recebe e só envia os dados de uso anônimos, que dá para desligar (veja abaixo). A única interação com a página é o botão "Ler party e charms".
 
 ```sh
 npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 ```
 
 - Chrome: `chrome://extensions` → modo desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
+- Opera (e Opera GX): o mesmo build do Chrome. `opera://extensions` → Modo de desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
 - Firefox (128+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
 
-Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome (pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
+Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome e do Opera (`-chrome-opera.zip`: o mesmo build do Chrome, porque o Opera é baseado no Chromium; pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
+
+### Site (baiak-loot.pages.dev)
+
+O site de download fica no Cloudflare Pages, na mesma conta do relay. `npm run build:web` gera `dist/web/` com a página (instalação, tutorial, dados de uso e novidades), o planner em `/planner/`, o zip do Chrome/Opera, os `.xpi` assinados, o `updates.json` do Firefox e os links curtos `/chrome`, `/opera` e `/firefox`. `npm run deploy:web` gera e publica.
+
+- As novidades ficam em `web/releases.json`; o build falha se a versão mais nova dali não for a do manifest.
+- O `.xpi` assinado que o AMO devolve vai em `web/signed/baiak-loot-planner-<versão>-firefox.xpi`. Sem ele, o botão do Firefox aparece como "em breve".
+- O manifest do Firefox leva `update_url` apontando para `https://baiak-loot.pages.dev/updates.json` (`src/site.js`). Esse endereço fica gravado em cada instalação: não troque o projeto nem o domínio depois de distribuir.
 
 A aba Início, que abre na primeira vez, mostra uma lista dos primeiros passos com o que já está pronto (jogo conectado, hunt identificada, 2 min de medição, party, charms, combate e Codex) e explica cada aba e cada botão.
 
@@ -55,7 +64,13 @@ O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patch
 
 ## Dados de uso anônimos (PostHog)
 
-Desligados por padrão. O overlay pergunta uma vez; o botão "Dados" e a página de opções da extensão mostram o que é enviado e ligam ou desligam o envio. No Firefox 140+, a opção usa a permissão de coleta de dados do próprio navegador (`technicalAndInteraction`, opcional), que também aparece na instalação. Nos outros navegadores, fica salva em `storage.local`.
+Ligados por padrão (opt-out), sempre com aviso antes do primeiro envio. Desligar não muda nada no funcionamento da extensão.
+
+- **Firefox 140+:** usa a permissão de coleta de dados do próprio navegador (`technicalAndInteraction`, opcional). Ela vem marcada na tela de instalação e pode ser desmarcada ali; o overlay não mostra aviso. Detectada por `permissions.getAll()`. Uma extensão carregada pelo `about:debugging` não passa pela tela de instalação, então a permissão começa desligada (ligue em `about:addons` → Permissões).
+- **Chrome e Firefox 128–139:** na primeira vez que o overlay abre, ele mostra um aviso com "Ver o que é enviado", "Desligar" e "Ok". O envio só começa depois que o aviso apareceu (`blp.consentAsked`), e uma escolha salva em `blp.consent` sempre vale mais que o padrão.
+- O botão "Dados" e a página de opções mostram o que é enviado e desligam ou religam o envio.
+
+O Mozilla permite opt-out só para dados técnicos e de interação, desde que a pessoa possa desligar já na primeira experiência e nada deixe de funcionar. Se o AMO classificar algum campo como conteúdo ou atividade do site, a coleta desse campo teria que virar opt-in.
 
 Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de medição e ao fechar a aba, pelo background, para o relay (`https://blp-vega.gabriel-luis-cinza.workers.dev/v1/punk`), que repassa ao PostHog:
 

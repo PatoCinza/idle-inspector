@@ -1,11 +1,12 @@
 import { build } from 'esbuild';
 import { readFile, writeFile, mkdir, readdir, copyFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { SITE, GECKO_ID, UPDATES_PATH } from '../src/site.js';
 
 const root = new URL('../', import.meta.url);
 const path = (relative) => fileURLToPath(new URL(relative, root));
 
-export const GECKO_ID = 'baiak-loot-planner@idle-inspector';
+export { GECKO_ID } from '../src/site.js';
 
 const ENTRIES = [
   { source: 'extension/page/hook.js', output: 'page-hook.js' },
@@ -32,6 +33,7 @@ export const TARGETS = {
     browser_specific_settings: {
       gecko: {
         id: GECKO_ID,
+        update_url: `${SITE.url}${UPDATES_PATH}`,
         strict_min_version: '128.0',
         data_collection_permissions: { required: ['none'], optional: ['technicalAndInteraction'] },
       },

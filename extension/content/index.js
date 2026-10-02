@@ -8,6 +8,7 @@ import { slotsFromCards } from '../../src/dom/charms.js';
 import { readSummary } from '../../src/dom/summary.js';
 import { startTelemetry } from './telemetry.js';
 import { KEYS } from '../../src/telemetry.js';
+import { needsNotice } from '../../src/posthog.js';
 
 const UI_KEY = 'blp.ui';
 const api = globalThis.browser ?? globalThis.chrome;
@@ -17,12 +18,17 @@ const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 const telemetry = startTelemetry({ api, storage: extensionStorage, dataset });
 
-const askConsent = () => Promise.all([
-  telemetry.consentState(),
-  extensionStorage.get(KEYS.asked).catch(() => true),
-]).then(([state, asked]) => !state?.granted && !asked);
+const markNoticeShown = () => extensionStorage.set({ [KEYS.asked]: true }).catch(() => {});
+const saveConsent = (granted) => extensionStorage.set({ [KEYS.consent]: { granted, at: Date.now() }, [KEYS.asked]: true }).catch(() => {});
 
-const overlay = Promise.all([extensionStorage.get(UI_KEY).catch(() => undefined), askConsent()]).then(([ui, consentPrompt]) => mountOverlay({
+const consentNotice = async () => {
+  const state = await telemetry.consentState();
+  const show = Boolean(state) && needsNotice(state);
+  if (show) await markNoticeShown();
+  return show;
+};
+
+const overlay = Promise.all([extensionStorage.get(UI_KEY).catch(() => undefined), consentNotice()]).then(([ui, consentPrompt]) => mountOverlay({
   doc: document,
   dataset,
   iconUrl,
@@ -34,10 +40,10 @@ const overlay = Promise.all([extensionStorage.get(UI_KEY).catch(() => undefined)
     track: telemetry.track,
     openOptions: () => {
       telemetry.track({ type: 'options' });
-      extensionStorage.set({ [KEYS.asked]: true }).catch(() => {});
       return telemetry.openOptions();
     },
-    dismissConsent: () => extensionStorage.set({ [KEYS.asked]: true }).catch(() => {}),
+    keepConsent: () => saveConsent(true),
+    declineConsent: () => saveConsent(false),
   },
 }));
 

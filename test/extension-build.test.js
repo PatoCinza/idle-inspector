@@ -64,6 +64,7 @@ test('botão da barra existe e o background segue o formato de cada navegador', 
 test('firefox declara id, versão mínima com world MAIN e coleta técnica só opcional', async () => {
   const { browser_specific_settings: gecko } = await manifest('firefox');
   assert.equal(gecko.gecko.id, GECKO_ID);
+  assert.match(gecko.gecko.update_url, /^https:\/\/[^/]+\/updates\.json$/);
   assert.ok(parseInt(gecko.gecko.strict_min_version, 10) >= 128);
   assert.deepEqual(gecko.gecko.data_collection_permissions, { required: ['none'], optional: ['technicalAndInteraction'] });
   assert.equal((await manifest('chrome')).browser_specific_settings, undefined);
@@ -99,6 +100,15 @@ test('só o background faz chamada de rede, e só para o relay', async () => {
     const background = await read(target, 'background.js');
     assert.doesNotMatch(background, otherHosts, `${target}/background.js`);
     assert.equal((background.match(/\bfetch\s*\(/g) ?? []).length, 1);
+  }
+});
+
+test('nenhum bundle monta HTML com innerHTML e afins (aviso do AMO)', async () => {
+  const unsafe = /\.innerHTML\s*=|\.outerHTML\s*=|insertAdjacentHTML|createContextualFragment|document\.write/;
+  for (const target of ['chrome', 'firefox']) {
+    for (const file of ['page-hook.js', 'content.js', 'background.js', 'options.js']) {
+      assert.doesNotMatch(await read(target, file), unsafe, `${target}/${file}`);
+    }
   }
 });
 

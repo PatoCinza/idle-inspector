@@ -1,4 +1,4 @@
-import { POSTHOG, KEYS, DELIVERY, batchOf, consentGranted, deliveryOf } from '../src/posthog.js';
+import { POSTHOG, KEYS, DELIVERY, batchOf, consentDetails, consentGranted, deliveryOf } from '../src/posthog.js';
 
 const api = globalThis.browser ?? globalThis.chrome;
 
@@ -30,7 +30,7 @@ const sendEvents = async ({ events }) => {
 
 const HANDLERS = {
   'blp-telemetry': sendEvents,
-  'blp-consent-state': async () => ({ granted: await consentGranted(api) }),
+  'blp-consent-state': () => consentDetails(api),
   'blp-open-options': async () => {
     await api.runtime.openOptionsPage();
     return { ok: true };

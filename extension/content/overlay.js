@@ -9,7 +9,7 @@ import { sampleTable, measuredQuantities } from '../../src/drop-log.js';
 import { skippedItems } from '../../src/model.js';
 import { STYLES } from '../../src/overlay/styles.js';
 import { renderWelcome, welcomeChecklist } from '../../src/overlay/welcome-view.js';
-import { patchHtml } from '../../src/overlay/patch.js';
+import { patchHtml, setHtml } from '../../src/overlay/patch.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
@@ -21,7 +21,7 @@ const SHELL = `<style>${STYLES}</style>
     <strong>Baiak Loot Planner</strong>
     <div class="actions">
       <button class="ghost" data-action="read-party" title="Lê o bônus de loot da party e os charms equipados">Ler party e charms</button>
-      <button class="ghost" data-action="options" title="Dados de uso anônimos: o que é enviado e como ligar ou desligar">Dados</button>
+      <button class="ghost" data-action="options" title="Dados de uso anônimos: o que é enviado e como desligar">Dados</button>
       <button class="ghost" data-action="toggle" title="Recolher ou expandir">▾</button>
     </div>
   </header>
@@ -44,9 +44,10 @@ export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFA
 
 const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary', 'sample']);
 
-const CONSENT_PROMPT = `<span>Quer ajudar a calibrar o modelo de loot e de charms? Dá para enviar dados de uso anônimos, sem nomes e sem IP. Desligado por padrão.</span>
+const CONSENT_PROMPT = `<span>Os dados de uso anônimos vêm ligados: a cada 10 minutos, a extensão envia um resumo das suas hunts, sem nomes e sem IP, para calibrar o modelo de loot e de charms. Dá para desligar aqui ou no botão Dados.</span>
   <button class="ghost" data-action="options">Ver o que é enviado</button>
-  <button class="ghost" data-action="consent-dismiss">Agora não</button>`;
+  <button class="ghost" data-action="consent-off">Desligar</button>
+  <button class="ghost" data-action="consent-keep">Ok</button>`;
 
 export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, actions = {}, consentPrompt = false }) => {
   let ui = { ...defaultUi(), ...stored };
@@ -57,14 +58,14 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
 
   const host = doc.createElement('div');
   const shadow = host.attachShadow({ mode: 'closed' });
-  shadow.innerHTML = SHELL;
+  setHtml(shadow, SHELL);
   ISOLATED_EVENTS.forEach((type) => host.addEventListener(type, (event) => event.stopPropagation()));
 
   const panel = shadow.querySelector('.panel');
   const body = shadow.querySelector('.body');
   const consent = shadow.querySelector('.consent');
   const track = actions.track ?? (() => {});
-  const setConsentPrompt = (visible) => { consent.innerHTML = visible ? CONSENT_PROMPT : ''; };
+  const setConsentPrompt = (visible) => setHtml(consent, visible ? CONSENT_PROMPT : '');
   setConsentPrompt(consentPrompt);
   const view = doc.defaultView;
 
@@ -168,7 +169,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     const html = PLANNER_TABS.has(ui.tab) ? renderHuntPicker({ hunts: dataset.hunts, selected: ui.plannedHunt, liveHunt }) : '';
     if (html === plannerHtml) return;
     plannerHtml = html;
-    planner.innerHTML = html;
+    setHtml(planner, html);
   };
 
   const render = () => {
@@ -213,9 +214,13 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       setConsentPrompt(false);
       return actions.openOptions?.();
     },
-    'consent-dismiss': () => {
+    'consent-keep': () => {
       setConsentPrompt(false);
-      return actions.dismissConsent?.();
+      return actions.keepConsent?.();
+    },
+    'consent-off': () => {
+      setConsentPrompt(false);
+      return actions.declineConsent?.();
     },
   };
 
