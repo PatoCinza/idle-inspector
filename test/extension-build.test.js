@@ -65,7 +65,8 @@ test('firefox declara id, versão mínima com world MAIN e coleta técnica só o
   const { browser_specific_settings: gecko } = await manifest('firefox');
   assert.equal(gecko.gecko.id, GECKO_ID);
   assert.match(gecko.gecko.update_url, /^https:\/\/[^/]+\/updates\.json$/);
-  assert.ok(parseInt(gecko.gecko.strict_min_version, 10) >= 128);
+  assert.ok(parseInt(gecko.gecko.strict_min_version, 10) >= 140);
+  assert.ok(parseInt(gecko.gecko_android.strict_min_version, 10) >= 142);
   assert.deepEqual(gecko.gecko.data_collection_permissions, { required: ['none'], optional: ['technicalAndInteraction'] });
   assert.equal((await manifest('chrome')).browser_specific_settings, undefined);
 });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Baiak Loot Planner",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Drops, Codex e charms ao vivo no Baiak Idle. Ferramenta de fã, sem vínculo oficial. Dados de uso anônimos, que dá para desligar.",
   "permissions": [
     "storage"

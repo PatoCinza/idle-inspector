@@ -38,7 +38,7 @@ npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 
 - Chrome: `chrome://extensions` → modo desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
 - Opera (e Opera GX): o mesmo build do Chrome. `opera://extensions` → Modo de desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
-- Firefox (128+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
+- Firefox (140+; Android 142+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
 
 Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome e do Opera (`-chrome-opera.zip`: o mesmo build do Chrome, porque o Opera é baseado no Chromium; pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
 
@@ -67,7 +67,7 @@ O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patch
 Ligados por padrão (opt-out), sempre com aviso antes do primeiro envio. Desligar não muda nada no funcionamento da extensão.
 
 - **Firefox 140+:** usa a permissão de coleta de dados do próprio navegador (`technicalAndInteraction`, opcional). Ela vem marcada na tela de instalação e pode ser desmarcada ali; o overlay não mostra aviso. Detectada por `permissions.getAll()`. Uma extensão carregada pelo `about:debugging` não passa pela tela de instalação, então a permissão começa desligada (ligue em `about:addons` → Permissões).
-- **Chrome e Firefox 128–139:** na primeira vez que o overlay abre, ele mostra um aviso com "Ver o que é enviado", "Desligar" e "Ok". O envio só começa depois que o aviso apareceu (`blp.consentAsked`), e uma escolha salva em `blp.consent` sempre vale mais que o padrão.
+- **Chrome e Opera:** na primeira vez que o overlay abre, ele mostra um aviso com "Ver o que é enviado", "Desligar" e "Ok". O envio só começa depois que o aviso apareceu (`blp.consentAsked`), e uma escolha salva em `blp.consent` sempre vale mais que o padrão.
 - O botão "Dados" e a página de opções mostram o que é enviado e desligam ou religam o envio.
 
 O Mozilla permite opt-out só para dados técnicos e de interação, desde que a pessoa possa desligar já na primeira experiência e nada deixe de funcionar. Se o AMO classificar algum campo como conteúdo ou atividade do site, a coleta desse campo teria que virar opt-in.
