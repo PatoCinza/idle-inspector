@@ -11,6 +11,7 @@
     "compare": "node scripts/compare.js",
     "build:ext": "node scripts/build-extension.js",
     "package:ext": "node scripts/package-extension.js",
+    "sign:firefox": "node scripts/sign-firefox.js",
     "build:web": "npm run build && npm run package:ext && node scripts/build-web.js",
     "deploy:web": "npm run build:web && npx wrangler pages deploy dist/web --project-name baiak-loot --branch main"
   },

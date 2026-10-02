@@ -13,7 +13,7 @@ export const compareVersions = (a, b) => {
 export const newestFirst = (releases) => [...releases].sort((a, b) => compareVersions(b.version, a.version));
 
 export const fileNames = (version) => ({
-  chromium: `${PACKAGE_NAME}-${version}-chrome-opera.zip`,
+  chromium: `${PACKAGE_NAME}-${version}-chrome-edge-opera.zip`,
   firefox: `${PACKAGE_NAME}-${version}-firefox.xpi`,
 });
 
@@ -33,6 +33,7 @@ export const updateManifest = (signed) => ({
 
 export const redirects = ({ chromium, firefox }) => [
   `/chrome ${downloadPath(chromium)} 302`,
+  `/edge ${downloadPath(chromium)} 302`,
   `/opera ${downloadPath(chromium)} 302`,
   `/firefox ${firefox ? downloadPath(firefox) : '/#firefox'} 302`,
 ].join('\n').concat('\n');

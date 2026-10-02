@@ -10,7 +10,7 @@ const path = (relative) => `${root}${relative}`;
 const NAME = 'baiak-loot-planner';
 const RELEASE_DIR = path('dist/release');
 const STAGING_DIR = `${RELEASE_DIR}/staging`;
-const CHROMIUM_GUIDE = path('scripts/release/COMO-INSTALAR-CHROME-OPERA.txt');
+const CHROMIUM_GUIDE = path('scripts/release/COMO-INSTALAR-CHROMIUM.txt');
 
 const run = (command, args, { cwd = root, input } = {}) => execFileSync(command, args, { cwd, input, encoding: 'utf8', stdio: [input ? 'pipe' : 'ignore', 'pipe', 'inherit'] });
 
@@ -32,7 +32,7 @@ const chromiumPackage = async ({ dir, version }) => {
   const folder = `${STAGING_DIR}/${NAME}`;
   await cp(dir, folder, { recursive: true });
   await cp(CHROMIUM_GUIDE, `${folder}/COMO-INSTALAR.txt`);
-  const output = `${RELEASE_DIR}/${NAME}-${version}-chrome-opera.zip`;
+  const output = `${RELEASE_DIR}/${NAME}-${version}-chrome-edge-opera.zip`;
   zip({ cwd: STAGING_DIR, output, entries: [NAME] });
   return output;
 };

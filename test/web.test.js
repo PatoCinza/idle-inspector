@@ -33,8 +33,9 @@ test('updates.json do Firefox aponta para o site, com hash', () => {
 test('links curtos e cabeçalhos do .xpi', () => {
   const files = fileNames('0.2.0');
   assert.equal(redirects({ chromium: files.chromium, firefox: null }), [
-    '/chrome /downloads/baiak-loot-planner-0.2.0-chrome-opera.zip 302',
-    '/opera /downloads/baiak-loot-planner-0.2.0-chrome-opera.zip 302',
+    '/chrome /downloads/baiak-loot-planner-0.2.0-chrome-edge-opera.zip 302',
+    '/edge /downloads/baiak-loot-planner-0.2.0-chrome-edge-opera.zip 302',
+    '/opera /downloads/baiak-loot-planner-0.2.0-chrome-edge-opera.zip 302',
     '/firefox /#firefox 302',
   ].join('\n').concat('\n'));
   assert.match(redirects(files), /^\/firefox \/downloads\/baiak-loot-planner-0\.2\.0-firefox\.xpi 302$/m);
@@ -69,4 +70,24 @@ test('as novidades começam na versão do manifest', () => {
   const [latest] = newestFirst(JSON.parse(readFileSync(new URL('../web/releases.json', import.meta.url), 'utf8')));
   const manifest = JSON.parse(readFileSync(new URL('../extension/manifest.json', import.meta.url), 'utf8'));
   assert.equal(latest.version, manifest.version);
+});
+
+test('o .xpi assinado é reconhecido pelo manifest de dentro, com qualquer nome', async () => {
+  const { mkdtemp, mkdir, writeFile } = await import('node:fs/promises');
+  const { execFileSync } = await import('node:child_process');
+  const { tmpdir } = await import('node:os');
+  const { readSignedXpi } = await import('../scripts/build-web.js');
+  const xpi = async ({ id = GECKO_ID, signed = true }) => {
+    const dir = await mkdtemp(`${tmpdir()}/blp-xpi-`);
+    await writeFile(`${dir}/manifest.json`, JSON.stringify({ version: '0.2.1', browser_specific_settings: { gecko: { id } } }));
+    if (signed) await mkdir(`${dir}/META-INF`).then(() => writeFile(`${dir}/META-INF/mozilla.rsa`, 'x'));
+    execFileSync('zip', ['-q', '-r', 'qualquer-nome.xpi', '.'], { cwd: dir });
+    return `${dir}/qualquer-nome.xpi`;
+  };
+  const build = await readSignedXpi(await xpi({}));
+  assert.equal(build.version, '0.2.1');
+  assert.equal(build.file, 'baiak-loot-planner-0.2.1-firefox.xpi');
+  assert.match(build.sha256, /^[0-9a-f]{64}$/);
+  await assert.rejects(readSignedXpi(await xpi({ signed: false })), /não está assinado/);
+  await assert.rejects(readSignedXpi(await xpi({ id: 'outra@ext' })), /outra extensão/);
 });

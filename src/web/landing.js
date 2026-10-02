@@ -41,7 +41,7 @@ const hero = ({ latest, files }) => `<header class="hero">
   <p class="lead">Drops e valor por hora, bestiário, Codex e o melhor plano de charms da sua hunt, ao vivo, num painel sobre o Baiak Idle.</p>
   <div class="buttons">
     ${downloadButton({ href: files.firefox && downloadPath(files.firefox), label: 'Baixar para Firefox', detail: files.firefox ? 'Instala com um clique e se atualiza sozinha' : 'Em breve: aguardando a assinatura do Mozilla', primary: true })}
-    ${downloadButton({ href: downloadPath(files.chromium), label: 'Baixar para Chrome / Opera', detail: 'Arquivo .zip, instalação em modo desenvolvedor', primary: !files.firefox })}
+    ${downloadButton({ href: downloadPath(files.chromium), label: 'Baixar para Chrome / Edge / Opera', detail: 'Arquivo .zip, instalação em modo desenvolvedor', primary: !files.firefox })}
   </div>
   <p class="meta">Versão ${escapeHtml(latest.version)}, de ${formatDate(latest.date)}. Ferramenta de fã, gratuita e sem vínculo oficial com o jogo.</p>
 </header>`;
@@ -61,11 +61,11 @@ const install = ({ files }) => `<section id="instalar">
     : '<p class="dim">A versão para Firefox está sendo assinada pelo Mozilla e aparece aqui em breve, com atualização automática.</p>'}
     </div>
     <div class="card">
-      <h3>Chrome e Opera (inclusive Opera GX)</h3>
+      <h3>Chrome, Edge e Opera (inclusive Opera GX e Brave)</h3>
       ${list([
     'Baixe o .zip e descompacte. Guarde a pasta <code>baiak-loot-planner</code> num lugar fixo, porque o navegador lê a extensão dela.',
-    'Abra <code>chrome://extensions</code> (no Opera, <code>opera://extensions</code>) e ligue o <b>Modo do desenvolvedor</b>.',
-    'Clique em <b>Carregar sem compactação</b> e escolha a pasta.',
+    'Abra a página de extensões: <code>chrome://extensions</code>, <code>edge://extensions</code> ou <code>opera://extensions</code>. Ligue o <b>Modo do desenvolvedor</b>.',
+    'Clique em <b>Carregar sem compactação</b> (no Edge, <b>Carregar sem pacote</b>) e escolha a pasta.',
     'Para atualizar, baixe a versão nova, substitua o conteúdo da pasta e clique em recarregar no card da extensão.',
   ], 'ol')}
       <p class="dim">O navegador pode avisar que há extensões em modo desenvolvedor. É esperado para extensões instaladas assim.</p>

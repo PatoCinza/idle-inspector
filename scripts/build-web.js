@@ -1,7 +1,8 @@
+import { execFileSync } from 'node:child_process';
 import { readFile, writeFile, mkdir, rm, copyFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { PACKAGE_NAME } from '../src/site.js';
+import { GECKO_ID } from '../src/site.js';
 import { DOWNLOADS_DIR, newestFirst, fileNames, updateManifest, redirects, headers } from '../src/web/releases.js';
 import { renderLanding } from '../src/web/landing.js';
 
@@ -11,15 +12,31 @@ const path = (relative) => `${root}${relative}`;
 const OUT_DIR = path('dist/web');
 const SIGNED_DIR = path('web/signed');
 const RELEASE_DIR = path('dist/release');
-const SIGNED_FILE = new RegExp(`^${PACKAGE_NAME}-(\\d+\\.\\d+\\.\\d+)-firefox\\.xpi$`);
 
 const readJson = async (relative) => JSON.parse(await readFile(path(relative), 'utf8'));
 
 const sha256 = async (file) => createHash('sha256').update(await readFile(file)).digest('hex');
 
+const unzip = (args) => execFileSync('unzip', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+
+export const readSignedXpi = async (source) => {
+  const name = source.split('/').pop();
+  const manifest = JSON.parse(unzip(['-p', source, 'manifest.json']));
+  const id = manifest.browser_specific_settings?.gecko?.id;
+  if (id !== GECKO_ID) throw new Error(`${name} é de outra extensão (${id}).`);
+  if (!unzip(['-Z1', source]).split('\n').includes('META-INF/mozilla.rsa')) throw new Error(`${name} não está assinado pelo Mozilla.`);
+  return { source, version: manifest.version, file: fileNames(manifest.version).firefox, sha256: await sha256(source) };
+};
+
+const assertUniqueVersions = (builds) => {
+  const repeated = builds.map(({ version }) => version).filter((version, i, all) => all.indexOf(version) !== i);
+  if (repeated.length) throw new Error(`web/signed tem mais de um .xpi da versão ${repeated[0]}.`);
+  return builds;
+};
+
 const signedBuilds = async () => {
-  const files = (await readdir(SIGNED_DIR).catch(() => [])).filter((file) => SIGNED_FILE.test(file));
-  return Promise.all(files.map(async (file) => ({ file, version: file.match(SIGNED_FILE)[1], sha256: await sha256(`${SIGNED_DIR}/${file}`) })));
+  const names = (await readdir(SIGNED_DIR).catch(() => [])).filter((name) => name.endsWith('.xpi'));
+  return assertUniqueVersions(await Promise.all(names.map((name) => readSignedXpi(`${SIGNED_DIR}/${name}`))));
 };
 
 const assertLatestMatchesManifest = (latest, manifest) => {
@@ -48,7 +65,7 @@ export const buildWeb = async () => {
     writeFile(`${OUT_DIR}/_headers`, headers(signed)),
     copyFile(path('dist/index.html'), `${OUT_DIR}/planner/index.html`),
     copyFile(`${RELEASE_DIR}/${names.chromium}`, `${OUT_DIR}/${DOWNLOADS_DIR}/${names.chromium}`),
-    ...signed.map(({ file }) => copyFile(`${SIGNED_DIR}/${file}`, `${OUT_DIR}/${DOWNLOADS_DIR}/${file}`)),
+    ...signed.map(({ source, file }) => copyFile(source, `${OUT_DIR}/${DOWNLOADS_DIR}/${file}`)),
   ]);
   return { version: latest.version, firefox: Boolean(files.firefox), signed: signed.map(({ version }) => version) };
 };

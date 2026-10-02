@@ -16,4 +16,4 @@ The Firefox package is the content of `dist/extension/firefox/` (the Chrome buil
 - The item icons in `site/img/items/` are copied as they are.
 - The manifest is `extension/manifest.json`, with the per-browser fields added by `scripts/build-extension.js`.
 
-`npm run package:ext` runs the same build and writes the release files to `dist/release/`: the Firefox package, the Chrome/Opera zip (the Chrome build, which Opera also loads) and this source archive.
+`npm run package:ext` runs the same build and writes the release files to `dist/release/`: the Firefox package, the Chrome/Edge/Opera zip (the Chrome build, which Edge and Opera also load) and this source archive.

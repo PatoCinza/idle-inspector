@@ -1,18 +1,20 @@
-Baiak Loot Planner — instalação no Chrome ou no Opera (inclusive Opera GX)
+Baiak Loot Planner — instalação no Chrome, Edge ou Opera (inclusive Opera GX e Brave)
 
 1. Descompacte este arquivo. Vai aparecer a pasta baiak-loot-planner.
 2. Guarde a pasta num lugar fixo (por exemplo, Documentos). O navegador lê a extensão dela, então não apague nem mova a pasta depois.
 3. Abra a página de extensões:
    - Chrome: chrome://extensions
+   - Edge: edge://extensions
    - Opera: opera://extensions
-4. Ligue o "Modo do desenvolvedor" (no Chrome fica no canto superior direito; no Opera, no topo da página).
-5. Clique em "Carregar sem compactação" e escolha a pasta baiak-loot-planner.
-6. Abra https://baiakidle.com/jogar/. O overlay aparece sobre o jogo; o botão da extensão na barra do navegador mostra o overlay se ele estiver escondido. No Opera, o botão pode ficar dentro do ícone de cubo (extensões) ao lado da barra de endereço.
+   - Brave: brave://extensions
+4. Ligue o "Modo do desenvolvedor" (no Chrome e no Opera fica no topo da página; no Edge, no menu à esquerda).
+5. Clique em "Carregar sem compactação" (no Edge, "Carregar sem pacote") e escolha a pasta baiak-loot-planner.
+6. Abra https://baiakidle.com/jogar/. O overlay aparece sobre o jogo; o botão da extensão na barra do navegador mostra o overlay se ele estiver escondido. O botão pode ficar dentro do ícone de extensões (peça de quebra-cabeça ou cubo) ao lado da barra de endereço.
 
 Dados de uso anônimos: vêm LIGADOS.
 A cada 10 minutos, a extensão envia um resumo das suas hunts (kills/h, loot que caiu, charms equipados, dano, vocação e level arredondado da party) para calibrar o modelo de loot e de charms. Não vão nomes de personagens, party ou guild, login, nem o seu IP.
 Na primeira vez que o overlay abrir, ele mostra um aviso com o botão "Desligar". Dá para desligar ou ligar de novo a qualquer momento no botão "Dados" do overlay ou nas opções da extensão (na página de extensões → Detalhes → Opções da extensão). Desligar não muda nada no funcionamento.
 
-Para atualizar: substitua o conteúdo da pasta pelo da versão nova e clique em recarregar no card da extensão, na página de extensões. A medição salva, a amostra de drops e a sua escolha sobre os dados continuam.
+Para atualizar: baixe a versão nova em https://baiak-loot.pages.dev, substitua o conteúdo da pasta e clique em recarregar no card da extensão, na página de extensões. A medição salva, a amostra de drops e a sua escolha sobre os dados continuam.
 
 O navegador pode avisar que há extensões em modo desenvolvedor ativas. É esperado para extensões instaladas assim.

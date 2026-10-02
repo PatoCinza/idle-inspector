@@ -37,17 +37,17 @@ npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 ```
 
 - Chrome: `chrome://extensions` → modo desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
-- Opera (e Opera GX): o mesmo build do Chrome. `opera://extensions` → Modo de desenvolvedor → Carregar sem compactação → `dist/extension/chrome`.
+- Edge, Opera (e Opera GX) e Brave: o mesmo build do Chrome. `edge://extensions` ou `opera://extensions` → Modo de desenvolvedor → Carregar sem compactação (no Edge, "Carregar sem pacote") → `dist/extension/chrome`.
 - Firefox (140+; Android 142+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
 
-Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome e do Opera (`-chrome-opera.zip`: o mesmo build do Chrome, porque o Opera é baseado no Chromium; pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
+Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome, Edge e Opera (`-chrome-edge-opera.zip`: o mesmo build do Chrome, porque Edge, Opera e Brave são baseados no Chromium; pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
 
 ### Site (baiak-loot.pages.dev)
 
-O site de download fica no Cloudflare Pages, na mesma conta do relay. `npm run build:web` gera `dist/web/` com a página (instalação, tutorial, dados de uso e novidades), o planner em `/planner/`, o zip do Chrome/Opera, os `.xpi` assinados, o `updates.json` do Firefox e os links curtos `/chrome`, `/opera` e `/firefox`. `npm run deploy:web` gera e publica.
+O site de download fica no Cloudflare Pages, na mesma conta do relay. `npm run build:web` gera `dist/web/` com a página (instalação, tutorial, dados de uso e novidades), o planner em `/planner/`, o zip do Chrome/Opera, os `.xpi` assinados, o `updates.json` do Firefox e os links curtos `/chrome`, `/edge`, `/opera` e `/firefox`. `npm run deploy:web` gera e publica.
 
 - As novidades ficam em `web/releases.json`; o build falha se a versão mais nova dali não for a do manifest.
-- O `.xpi` assinado que o AMO devolve vai em `web/signed/baiak-loot-planner-<versão>-firefox.xpi`. Sem ele, o botão do Firefox aparece como "em breve".
+- O `.xpi` assinado vai em `web/signed/baiak-loot-planner-<versão>-firefox.xpi`. Sem ele, o botão do Firefox aparece como "em breve". `npm run sign:firefox` faz o envio ao AMO (não listado, com o código-fonte), espera a assinatura e salva o arquivo ali; precisa de `WEB_EXT_API_KEY` e `WEB_EXT_API_SECRET`, criadas em https://addons.mozilla.org/developers/addon/api/key/.
 - O manifest do Firefox leva `update_url` apontando para `https://baiak-loot.pages.dev/updates.json` (`src/site.js`). Esse endereço fica gravado em cada instalação: não troque o projeto nem o domínio depois de distribuir.
 
 A aba Início, que abre na primeira vez, mostra uma lista dos primeiros passos com o que já está pronto (jogo conectado, hunt identificada, 2 min de medição, party, charms, combate e Codex) e explica cada aba e cada botão.
