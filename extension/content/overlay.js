@@ -10,6 +10,8 @@ import { skippedItems } from '../../src/model.js';
 import { STYLES } from '../../src/overlay/styles.js';
 import { renderWelcome, welcomeChecklist } from '../../src/overlay/welcome-view.js';
 import { patchHtml, setHtml } from '../../src/overlay/patch.js';
+import { rotationTable } from '../../src/rotation-table.js';
+import { renderRotation } from '../../src/overlay/rotation-view.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
@@ -37,10 +39,11 @@ const TABS = [
   { id: 'bestiary', label: 'Bestiário' },
   { id: 'codex', label: 'Codex' },
   { id: 'charms', label: 'Charms' },
+  { id: 'rotation', label: 'Rotação' },
   { id: 'sample', label: 'Amostra' },
 ];
 
-export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'welcome', codexSection: 'hunt', plannedHunt: null, charmObjective: 'profit' });
+export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFAULT_SORT, tab: 'welcome', codexSection: 'hunt', plannedHunt: null, charmObjective: 'profit', rotationPeriod: 'mobs' });
 
 const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary', 'sample']);
 
@@ -161,6 +164,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       saved: plan.saved,
     })),
     welcome: (plan) => renderWelcome({ checklist: welcomeChecklist({ dataset, app, plan }) }),
+    rotation: () => renderRotation(rotationTable({ dataset, rotation: app.rotation ?? null, party: party(), period: ui.rotationPeriod })),
     sample: (plan) => renderSample(sampleTable({ dataset, hunt: plan.hunt, log: app.dropLog, skipped: skipped() })),
   };
 
@@ -177,7 +181,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     const plan = planFor({ dataset, app, plannedHunt: ui.plannedHunt });
     renderTabs();
     renderPlanner(plan);
-    panel.classList.toggle('fill', (ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt)) || ui.tab === 'charms');
+    panel.classList.toggle('fill', (ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt)) || ui.tab === 'charms' || ui.tab === 'rotation');
     patchHtml(body, (views[ui.tab] ?? views.drops)(plan));
   };
 
@@ -235,6 +239,12 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     const codexSectionId = event.target.closest('[data-codex]')?.dataset.codex;
     if (codexSectionId) {
       updateUi({ codexSection: codexSectionId });
+      render();
+      return;
+    }
+    const rotationPeriod = event.target.closest('[data-rotation]')?.dataset.rotation;
+    if (rotationPeriod) {
+      updateUi({ rotationPeriod });
       render();
       return;
     }

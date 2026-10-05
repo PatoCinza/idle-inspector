@@ -79,6 +79,7 @@ tr.deliverable td:first-child { box-shadow: inset 3px 0 0 #7fd39a; }
 .meter { display: block; width: 90px; height: 6px; background: #242631; border-radius: 3px; overflow: hidden; }
 .meter > span { display: block; height: 100%; background: #6fb5ff; }
 .pill.good { color: #7fd39a; }
+.compare { margin: 2px 8px 6px; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
 .plans h3 { margin: 8px 8px 4px; font-size: 12px; }
 .plans table { margin-bottom: 4px; }
 .status-pill { margin-left: 8px; font-weight: 400; color: #c7c8d1; }

@@ -1,0 +1,696 @@
+{
+ "source": "Bloated Man-Maggot, 04/10/2026: MS com Death Echo, ED com Wrath of Nature, EK com amp kor. Recorte real de 2,4 s do combatlog e do fx.",
+ "frames": [
+  {
+   "dt": 0,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "cd",
+     "slot": 2,
+     "words": "exevo mort ora",
+     "cd": 6000,
+     "group": "attack",
+     "gcd": 2000
+    }
+   ]
+  },
+  {
+   "dt": 0,
+   "type": "combatlog",
+   "payload": [
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 1,
+     "el": "physical",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 164,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 7971,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 6549,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 6316,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 6662,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 6160,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 7027,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    }
+   ]
+  },
+  {
+   "dt": 315,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "cd",
+     "slot": 1,
+     "words": "exori amp kor",
+     "cd": 18000,
+     "group": "attack",
+     "gcd": 2000
+    }
+   ]
+  },
+  {
+   "dt": 316,
+   "type": "combatlog",
+   "payload": [
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 1,
+     "el": "physical",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 2256,
+     "el": "ice",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 1,
+     "el": "physical",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 1792,
+     "el": "ice",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 21,
+     "el": "physical",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 2220,
+     "el": "ice",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    }
+   ]
+  },
+  {
+   "dt": 822,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "atk",
+     "memberId": 0,
+     "cd": 2000
+    }
+   ]
+  },
+  {
+   "dt": 822,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "atk",
+     "memberId": 2,
+     "cd": 1970.4433497536947
+    }
+   ]
+  },
+  {
+   "dt": 823,
+   "type": "combatlog",
+   "payload": [
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 1,
+     "el": "physical",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "druid",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 394,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 2378,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    }
+   ]
+  },
+  {
+   "dt": 903,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "atk",
+     "memberId": 1,
+     "cd": 1809.9547511312217
+    }
+   ]
+  },
+  {
+   "dt": 903,
+   "type": "combatlog",
+   "payload": [
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 55,
+     "el": "physical",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 2300,
+     "el": "ice",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    }
+   ]
+  },
+  {
+   "dt": 1034,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "cd",
+     "slot": 0,
+     "words": "exevo gran mas tera",
+     "cd": 10000,
+     "group": "attack",
+     "gcd": 2000
+    }
+   ]
+  },
+  {
+   "dt": 1034,
+   "type": "combatlog",
+   "payload": [
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 164,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "druid",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 4424,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "druid",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 2605,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "druid",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 2520,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "druid",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 3615,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "druid",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 3151,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "druid",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 3076,
+     "el": "earth",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    }
+   ]
+  },
+  {
+   "dt": 1340,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "cd",
+     "slot": 0,
+     "words": "exura sio",
+     "cd": 1000,
+     "group": "heal",
+     "gcd": 1000
+    }
+   ]
+  },
+  {
+   "dt": 2041,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "xp",
+     "x": 11,
+     "y": 2,
+     "amount": 40680
+    }
+   ]
+  },
+  {
+   "dt": 2042,
+   "type": "combatlog",
+   "payload": [
+    {
+     "k": "dealt",
+     "voc": "knight",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 73,
+     "el": "physical",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 7811,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 6567,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 7862,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 6876,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 4946,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 2501,
+     "el": "energy",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 6818,
+     "el": "death",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 2501,
+     "el": "energy",
+     "crit": false,
+     "fatal": false,
+     "killed": false
+    }
+   ]
+  },
+  {
+   "dt": 2126,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "cd",
+     "slot": 2,
+     "words": "exevo gran mas flam",
+     "cd": 10000,
+     "group": "attack",
+     "gcd": 2000
+    }
+   ]
+  },
+  {
+   "dt": 2126,
+   "type": "combatlog",
+   "payload": [
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 23193,
+     "el": "fire",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Mycobiontic Beetle"
+     },
+     "amount": 23498,
+     "el": "fire",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Bloated Man-Maggot"
+     },
+     "amount": 34729,
+     "el": "fire",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 21307,
+     "el": "fire",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    },
+    {
+     "k": "dealt",
+     "voc": "sorcerer",
+     "foe": {
+      "kind": "mob",
+      "name": "Sopping Corpus"
+     },
+     "amount": 24929,
+     "el": "fire",
+     "crit": true,
+     "fatal": false,
+     "killed": false
+    }
+   ]
+  },
+  {
+   "dt": 2342,
+   "type": "fx",
+   "payload": [
+    {
+     "t": "cd",
+     "slot": 0,
+     "words": "exura sio",
+     "cd": 1000,
+     "group": "heal",
+     "gcd": 1000
+    }
+   ]
+  }
+ ]
+}

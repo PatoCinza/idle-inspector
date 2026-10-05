@@ -1,8 +1,10 @@
 import { createCapture } from '../../src/capture/hook.js';
 import { TAG } from '../../src/capture/protocol.js';
+import spellData from '../../data/spells.json';
 
 const capture = createCapture({
   emit: (event) => window.postMessage({ source: TAG, event }, window.location.origin),
+  spells: spellData.spells,
 });
 
 const bytesOf = (data) => {

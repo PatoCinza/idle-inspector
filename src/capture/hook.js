@@ -1,6 +1,7 @@
 import { parseFrame, parseMessage } from './frames.js';
 import { procsFromStats } from '../avatar.js';
 import { combatFromLog, mergeCombat, hasCombat } from '../combat.js';
+import { createAttribution, initialAttribution, inputsFromMessage, addRecords, mergeRotation, hasRotation, EMPTY_ROTATION, ROTATION_MESSAGES } from '../rotation.js';
 
 const ROOM_DATA = 13;
 const ANALYZER_PANELS = new Set(['hunt', 'loot']);
@@ -41,11 +42,12 @@ const INCOMING = {
   },
 };
 
-export const THROTTLE_MS = { procs: 5000, charmStats: 5000, combat: 5000, xp: 5000 };
+export const THROTTLE_MS = { procs: 5000, charmStats: 5000, combat: 5000, xp: 5000, rotation: 5000 };
 
 const MERGE = {
   combat: (pending, next) => ({ ...next, combat: mergeCombat(pending.combat, next.combat) }),
   xp: (pending, next) => ({ ...next, xp: pending.xp + next.xp }),
+  rotation: (pending, next) => ({ ...next, stats: mergeRotation(pending.stats, next.stats) }),
 };
 
 const latest = (pending, next) => next;
@@ -57,9 +59,23 @@ const OUTGOING = {
 
 const eventsFromFrame = (frame) => (frame.kind === 'patch' ? fromPatch(frame) : INCOMING[frame.type]?.(frame.payload) ?? []);
 
-export const createCapture = ({ emit, now = Date.now }) => {
+export const createCapture = ({ emit, now = Date.now, spells = [] }) => {
   const lastEmit = {};
   const pending = {};
+  const attribute = createAttribution(spells);
+  let attribution = initialAttribution();
+  let unsent = EMPTY_ROTATION;
+
+  const rotationEvents = (frame, t) => {
+    if (frame.kind !== 'message' || !ROTATION_MESSAGES.has(frame.type)) return [];
+    const step = attribute(attribution, inputsFromMessage(frame.type, frame.payload), t);
+    attribution = step.state;
+    unsent = addRecords(unsent, step.records);
+    if (!hasRotation(unsent)) return [];
+    const stats = unsent;
+    unsent = EMPTY_ROTATION;
+    return [{ type: 'rotation', stats }];
+  };
 
   const throttled = (event) => {
     const gap = THROTTLE_MS[event.type];
@@ -75,19 +91,20 @@ export const createCapture = ({ emit, now = Date.now }) => {
   };
 
   const safely = (toEvents) => (bytes) => {
+    const t = now();
     try {
-      toEvents(bytes)
-        .map((event) => ({ ...event, t: now() }))
+      toEvents(bytes, t)
+        .map((event) => ({ ...event, t }))
         .flatMap(throttled)
         .forEach(emit);
     } catch {
-      emit({ type: 'error', t: now() });
+      emit({ type: 'error', t });
     }
   };
 
-  const incoming = safely((bytes) => {
+  const incoming = safely((bytes, t) => {
     const frame = parseFrame(bytes);
-    return frame ? eventsFromFrame(frame) : [];
+    return frame ? [...eventsFromFrame(frame), ...rotationEvents(frame, t)] : [];
   });
 
   const outgoing = safely((bytes) => {

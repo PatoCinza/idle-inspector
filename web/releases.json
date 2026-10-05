@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.3.0",
+    "date": "2026-10-04",
+    "notes": [
+      "Nova aba Rotação: dano por cast de cada magia e runa, por personagem, nas ondas e na sala do boss, com o eco do Death Echo, o ataque básico e os procs separados.",
+      "Cada magia de cooldown maior é comparada com a runa ou magia de reserva que ela substitui no cooldown global, nas salas em que as duas foram lançadas.",
+      "Tempo de sala agrupado pela rotação usada, para ver se uma troca de magias deixou a hunt mais rápida.",
+      "Ler party agora traz magic level, Dano de magia e a proficiência da arma, e a aba compara o dano medido com a fórmula do jogo e a resistência de cada criatura.",
+      "Os dados de uso anônimos passam a levar o dano de cada magia com o level e o magic level de quem lançou, para comparar rotações por faixa de level."
+    ]
+  },
+  {
     "version": "0.2.1",
     "date": "2026-10-02",
     "notes": [

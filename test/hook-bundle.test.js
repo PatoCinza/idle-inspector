@@ -89,3 +89,16 @@ test('o socket só recebe um listener mesmo com vários envios', () => {
   socket.receive(patchFrame(15, JSON.stringify({ 'h:troll-cave': 1, troll: 5 })));
   assert.equal(posted.length, 1);
 });
+
+test('o hook empacotado leva a tabela de magias e atribui o dano à magia', async () => {
+  const { FakeSocket, posted } = loadHook();
+  const socket = new FakeSocket();
+  socket.send(toBuffer(roomData('cpong')));
+  socket.receive(roomData('fx', [{ t: 'cd', slot: 2, words: 'exevo gran mas vis', group: 'attack' }]));
+  socket.receive(roomData('combatlog', [{ k: 'dealt', voc: 'sorcerer', foe: { kind: 'mob', name: 'Troll' }, amount: 900, el: 'energy', crit: false }]));
+  await new Promise((resolve) => { setTimeout(resolve, 60); });
+  socket.receive(roomData('combatlog', [{ k: 'dealt', voc: 'knight', foe: { kind: 'mob', name: 'Troll' }, amount: 5, el: 'physical', crit: false }]));
+  const rotation = posted.map((p) => p.data.event).filter((event) => event.type === 'rotation');
+  assert.equal(rotation.length, 1);
+  assert.equal(rotation[0].stats.members.sorcerer.mobs.spells['exevo gran mas vis'].dealt, 900);
+});

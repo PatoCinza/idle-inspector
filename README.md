@@ -60,7 +60,20 @@ O seletor "Planejar" (abas Drops, Bestiário, Codex e Amostra) escolhe qualquer 
 
 A aba Amostra guarda, no navegador, cada kill isolada (uma atualização do servidor com uma kill só): quantas kills de cada criatura, quantas vezes cada item caiu e em que quantidade. Ela compara a chance medida com a prevista (intervalo de 95%) e marca quantidade acima do máximo ou item fora da tabela. Com 30 drops ou mais de um item, a quantidade medida substitui a média da tabela nas abas Drops e Charms. A amostra soma todas as sessões e não zera com o Hunt Analyzer.
 
-O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico e bônus de loot de cada membro e as cartas da janela de Charms.
+O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida), cada cast de magia de ataque e cada ataque básico (`fx`), as ondas e salas (`notify`) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico, bônus de loot, magic level, Dano de magia e a proficiência da arma de cada membro e as cartas da janela de Charms.
+
+### Aba Rotação
+
+Mostra, para cada personagem, quanto cada magia e runa rende por cast, nas ondas e na sala do boss (a onda 10, onde a rotação de alvo único entra). Responde perguntas como "vale usar o Death Echo ou ir direto na Thunderstorm?" com números da sua hunt.
+
+- **Atribuição:** o `combatlog` não diz qual magia causou o dano. O `fx` manda `{t:'cd', slot, words}` a cada cast, e o lote do `combatlog` com o dano daquele cast chega no mesmo instante. O hook junta os dois (`src/rotation.js`): golpe da vocação do slot até 40 ms depois do cast, com o elemento da magia, é dela. O eco do Death Echo chega 2 s depois (`echo.delayMs` da tabela), sem cast novo, e entra na mesma magia. Golpe no instante do `fx` `atk` é ataque básico (a wand do Sorcerer é de morte, por isso fica fora do eco); golpe de outro elemento no instante do cast é proc de charm; o resto vai para "Outros". Magia de knight aceita qualquer elemento, porque a arma soma o dano do elemento dela.
+- **Slot e vocação:** magia de uma vocação só ensina qual slot é de quem; runas de várias vocações usam esse mapa ou o primeiro golpe depois do cast.
+- **Dano por cast:** média e intervalo de 95% por soma e soma dos quadrados de cada cast, golpes por cast, crítico (taxa e multiplicador medido) e participação no dano do personagem.
+- **Comparação com a reserva:** todas as magias de ataque dividem o cooldown global de 2 s, então uma magia de cooldown maior toma o lugar de um cast da magia de reserva (a de cooldown de 2 s mais lançada, em geral uma runa). A aba mostra a diferença por cast com intervalo de Welch, usando só as salas em que as duas foram lançadas, porque o dano por cast depende de quantos alvos estão vivos e muda quando a rotação muda.
+- **Medido/esperado:** golpe sem crítico ÷ (fórmula da magia com level e magic level × (1 + Dano de magia) × (1 − resistência da criatura)). As fórmulas vêm do bundle (`data/game.json`, campo `spells`, ajustadas em coeficientes de level e magic level). O nível absoluto passa de 1 (em 04/10, ~1,5 no Sorcerer) porque há multiplicadores fora da fórmula; o que importa é comparar magias do mesmo personagem.
+- **Salas por rotação:** cada sala completa guarda o tempo e o dano por magia de cada personagem. Salas com a mesma rotação são agrupadas, e a tabela compara as salas/h de cada grupo com o mais medido.
+
+Medido em 04/10 na Bloated Man-Maggot (11 min de ondas, 7 salas): Death Echo 27k por cast contra 32k da Thunderstorm (empate, −18%, IC −16k a +3k), Forked Glacier empatado com a Avalanche e Executioner's Throw (amp kor) 3,4k por cast abaixo do Berserk (rende menos).
 
 ## Dados de uso anônimos (PostHog)
 
@@ -78,17 +91,18 @@ Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de 
 - `blp_hunt_window`: uma por janela de medição, reenviada quando ela avança. Leva:
   - hunt, duração, kills/h por criatura e salas/h;
   - o tempo de cada sala (`phase`), para o A/B de charms como a Adrenaline Burst;
-  - a party sem nomes: vocação, level arredondado para baixo em múltiplos de 50, bônus de loot, crítico, tempo em avatar, golpes e dano;
+  - a party sem nomes: vocação, level (exato e a faixa de 50), magic level, bônus de loot, crítico, tempo em avatar, golpes e dano;
   - os charms equipados, cada um com o ganho previsto pelo modelo sem calibração (fração do dano na criatura) ou o dano evitado previsto (Parry e Dodge), e o Charm Analyzer;
   - o loot observado e o previsto pelo modelo, em quantidade por item e em gold/h;
-  - XP/h, dano causado e recebido por criatura e gasto do Supply Analyser.
+  - XP/h, dano causado e recebido por criatura e gasto do Supply Analyser;
+  - a rotação (`rotation`), para ver o que compensa em cada faixa de level: para cada vocação, o level (exato e a faixa de 50, para agrupar), o magic level e as skills, o Dano de magia, o crítico e a proficiência da arma; para cada magia (as 8 de maior dano por período, ondas e sala do boss), casts, dano, soma dos quadrados por cast, golpes, críticos, eco e os golpes sem crítico por criatura; ataque básico e procs; e as últimas 50 salas com casts e dano de cada magia.
 - `blp_drop_sample`: o que entrou na aba Amostra desde o último envio, por criatura: kills isoladas e fator de bônus. Vai um registro para cada item da tabela da criatura, inclusive os que não caíram, com drops, quantidades, chance prevista, quantidade média prevista e máximo da tabela; itens fora da tabela vão marcados com `unlisted`.
 
 Cada evento leva um identificador aleatório da instalação (`crypto.randomUUID()`, sem relação com a conta), `$process_person_profile: false` (sem perfil de pessoa) e `$geoip_disable: true`. Nunca vão nomes de personagens, de party ou de guild, login nem IDs do jogo. O envio passa pelo relay (abaixo), que não repassa o IP do jogador; o PostHog vê o IP da Cloudflare, e o projeto descarta IPs (Settings → Project → IP data capture, desligada; mantenha assim). A Cloudflare recebe a conexão, como qualquer servidor, mas o Worker só usa o IP como chave do limite por minuto e não o grava. O conteúdo das bags ainda não é coletado.
 
 ### Relay (Cloudflare Worker)
 
-O Firefox no modo rigoroso e os bloqueadores barram `us.i.posthog.com`. O `relay/worker.js` é um Cloudflare Worker gratuito que recebe o lote em `/v1/punk` e repassa para o PostHog. Ele só aceita a chave deste projeto e lotes no formato da extensão (até 500 eventos `blp_*`, com `distinct_id`, `timestamp`, `$process_person_profile: false` e `$geoip_disable: true`), recusa corpo acima de 1 MB e não repassa cabeçalhos do jogador, então o PostHog vê o IP da Cloudflare, não o de quem joga. Um lote com a chave do projeto que for recusado (grande demais ou fora do formato) vira um evento `blp_relay_rejected` com o motivo, o tamanho, os nomes dos eventos, a instalação e a versão. O pior lote possível (todas as criaturas do jogo com amostra pendente e 500 salas na janela) fica em torno de 760 KB, e um teste falha se ele passar de 900 KB.
+O Firefox no modo rigoroso e os bloqueadores barram `us.i.posthog.com`. O `relay/worker.js` é um Cloudflare Worker gratuito que recebe o lote em `/v1/punk` e repassa para o PostHog. Ele só aceita a chave deste projeto e lotes no formato da extensão (até 500 eventos `blp_*`, com `distinct_id`, `timestamp`, `$process_person_profile: false` e `$geoip_disable: true`), recusa corpo acima de 1 MB e não repassa cabeçalhos do jogador, então o PostHog vê o IP da Cloudflare, não o de quem joga. Um lote com a chave do projeto que for recusado (grande demais ou fora do formato) vira um evento `blp_relay_rejected` com o motivo, o tamanho, os nomes dos eventos, a instalação e a versão. O pior lote possível (todas as criaturas do jogo com amostra pendente, 500 salas na janela e a rotação de cinco vocações com 8 magias por período e 50 salas) fica em torno de 880 KB, e um teste falha se ele passar de 900 KB.
 
 Deploy: `cd relay && npx wrangler login && npx wrangler deploy`. Use o wrangler, não o editor do painel: o limite por IP (binding `PER_IP`, 30 requisições por minuto, no `wrangler.toml`) só se configura por ele. Colado no painel sem o binding, o Worker funciona, mas sem limite. Acima do limite, responde 429 com `Retry-After: 60`, e a extensão reenvia depois. No plano gratuito são 100 mil requisições por dia (zera à 0h UTC); passando disso, o `workers.dev` responde com erro 1027 e a extensão guarda o lote até a cota voltar.
 
@@ -130,7 +144,7 @@ Salas mais longas que 3× a mediana (morte, pausa, reconexão) são descartadas 
 ```sh
 npm install
 npm test          # modelo, calibração e estatística do A/B
-npm run extract   # baixa o cliente do jogo e regenera data/game.json
+npm run extract   # baixa o cliente do jogo e regenera data/game.json e data/spells.json
 npm run images    # baixa os ícones dos itens
 npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.min.js
 ```
@@ -151,6 +165,10 @@ npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.mi
 | `extension/options/` | Página de opções: o que é enviado e o consentimento |
 | `src/drop-log.js` | Amostra local de drops: kills isoladas por criatura, chance e quantidade medidas × previstas |
 | `src/combat.js` | Agrega o `combatlog`: dano, golpes e críticos por vocação, dano por criatura |
+| `src/rotation.js` | Junta cast (`fx`), dano (`combatlog`) e ondas (`notify`): dano por magia e personagem, eco, ataque básico, procs e salas |
+| `src/rotation-table.js`, `src/overlay/rotation-view.js` | Aba Rotação: dano por cast, comparação com a reserva, medido/esperado e salas por rotação |
+| `src/spells.js` | Tabela de magias: elemento pelas palavras, fórmula em coeficientes de level e magic level |
+| `scripts/raw-sampler.js` | Script de console que guarda mensagens cruas do WebSocket, para estudar campos novos |
 | `src/payload.js` | Decodifica o código do coletor em entradas do modelo |
 | `src/collector.js` | Script de console |
 | `src/experiment.js` | Estatística do A/B: tempos de sala, waves, primeiro golpe, intervalos de Welch |
@@ -205,6 +223,7 @@ Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro
 - **Codex de boss e de equipamento** mostram só o progresso e o que falta entregar, sem tempo estimado: as lutas de boss não são medidas e a raridade das drops de equipamento não está no modelo.
 - **Hunts limitadas pelo spawn** não ganham kills/h com mais dano. O plano supõe hunt limitada por dano, o que favorece os majors ofensivos.
 - **Supplies por dano recebido** atribuem todo o gasto com poções ao dano recebido, inclusive a mana gasta em ataque. É um teto para o valor do Dodge e do Parry.
+- **Rotação:** o `combatlog` não identifica a magia; a atribuição usa o instante do cast. Se a wand e uma magia de morte do Sorcerer saem no mesmo instante, o golpe da wand entra na magia. Proc de charm do mesmo elemento da magia, no instante do cast, entra na magia. A primeira sala depois de abrir o jogo não entra na tabela de salas, porque o começo dela não foi visto. Perks de proficiência por magia ou elemento aparecem na aba, mas ainda não entram no esperado.
 - **Mortes** ainda não entram: nenhuma morte foi registrada nas sessões medidas, e o formato da mensagem ainda não foi visto.
 
 ## Próximos passos (v2)

@@ -13,6 +13,8 @@ export { POSTHOG, KEYS, DATA_COLLECTION, batchOf } from './posthog.js';
 export const FLUSH_MS = 10 * 60 * 1000;
 export const LEVEL_STEP = 50;
 export const MAX_PHASES = 500;
+export const MAX_ROTATION_ROOMS = 50;
+export const MAX_ROTATION_SPELLS = 8;
 
 const round = (value, digits = 0) => (Number.isFinite(value) ? Math.round(value * 10 ** digits) / 10 ** digits : null);
 const roundMap = (map, digits = 0) => (map ? Object.fromEntries(Object.entries(map).map(([key, value]) => [key, round(value, digits)])) : null);
@@ -34,9 +36,13 @@ const usageEvents = (usage) => (sum([...Object.values(usage.tabs), usage.planner
   ? [{ event: 'blp_usage', properties: { tabs: usage.tabs, planner_changes: usage.planner, read_party: usage.readParty, objective_changes: usage.objective, options_opened: usage.options } }]
   : []);
 
+const bucket = (value, step) => (Number.isFinite(value) ? Math.floor(value / step) * step : null);
+
 export const anonymousMember = (member) => ({
   vocation: member.vocation ?? null,
-  level_bucket: Number.isFinite(member.level) ? Math.floor(member.level / LEVEL_STEP) * LEVEL_STEP : null,
+  level: member.level ?? null,
+  level_bucket: bucket(member.level, LEVEL_STEP),
+  magic_level: member.magicLevel ?? null,
   loot_pct: member.lootPct ?? null,
   crit_chance: member.critChance ?? null,
   crit_dmg: member.critDmg ?? null,
@@ -89,6 +95,60 @@ const phaseCharms = (dataset, inHunt, charms) => (isPlacement(charms)
     .join(',')
   : null);
 
+const skillLevels = (skills) => (skills
+  ? Object.fromEntries(Object.entries(skills).map(([name, skill]) => [name, skill.base + skill.bonus]))
+  : null);
+
+const compactNormal = (normal = {}) => Object.fromEntries(Object.entries(normal).map(([foe, stats]) => [foe, [stats.hits, round(stats.dealt), round(stats.sq)]]));
+
+const spellEntry = (period) => ([words, stats]) => ({
+  words,
+  period,
+  casts: stats.casts,
+  dealt: round(stats.dealt),
+  sq: round(stats.sq),
+  hits: stats.hits,
+  crits: stats.crits,
+  crit_dealt: round(stats.critDealt),
+  echo: round(stats.echo),
+  normal: compactNormal(stats.normal),
+});
+
+const rotationMember = (members) => ([vocation, byPeriod]) => {
+  const member = (members ?? []).find((candidate) => candidate.vocation === vocation) ?? {};
+  return {
+    vocation,
+    level: member.level ?? null,
+    level_bucket: bucket(member.level, LEVEL_STEP),
+    magic_level: member.magicLevel ?? null,
+    skills: skillLevels(member.skills),
+    spell_dmg_pct: member.spellDmgPct ?? null,
+    crit_chance: member.critChance ?? null,
+    crit_dmg: member.critDmg ?? null,
+    proficiency: member.proficiency ?? null,
+    spells: Object.entries(byPeriod).flatMap(([period, part]) => Object.entries(part.spells ?? {})
+      .sort(([, a], [, b]) => b.dealt - a.dealt)
+      .slice(0, MAX_ROTATION_SPELLS)
+      .map(spellEntry(period))),
+    loose: Object.fromEntries(Object.entries(byPeriod).map(([period, part]) => [period, part.loose ?? {}])),
+  };
+};
+
+const compactRoom = (room) => ({
+  ms: room.ms,
+  spells: Object.fromEntries(Object.entries(room.spells ?? {}).map(([vocation, spells]) => [vocation, Object.fromEntries(
+    Object.entries(spells).map(([words, stats]) => [words, [stats.casts, round(stats.dealt)]]),
+  )])),
+});
+
+export const rotationTelemetry = (rotation, members) => (rotation && Object.keys(rotation.members ?? {}).length
+  ? {
+    minutes: { mobs: round((rotation.time?.mobs ?? 0) / 60000, 2), boss: round((rotation.time?.boss ?? 0) / 60000, 2) },
+    members: Object.entries(rotation.members).map(rotationMember(members)),
+    rooms: (rotation.rooms ?? []).slice(-MAX_ROTATION_ROOMS).map(compactRoom),
+  }
+  : null);
+
 const predictedLoot = (table, minutes) => Object.fromEntries(table.rows.map((row) => [row.item, round((row.perHour * minutes) / 60, 2)]));
 
 export const huntWindowEvent = ({ dataset, app }) => {
@@ -133,6 +193,7 @@ export const huntWindowEvent = ({ dataset, app }) => {
         phase_ms: phasesOf(app).map((phase) => phase.ms),
         phase_charms: phasesOf(app).map((phase) => phaseCharms(dataset, inHunt, phase.charms)),
         phase_charms_scope: 'hunt',
+        rotation: rotationTelemetry(app.rotation ?? null, members),
       },
     },
   };

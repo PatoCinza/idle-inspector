@@ -1,3 +1,5 @@
+import { attackSpells } from './spells.js';
+
 const QUOTES = new Set(['"', "'", '`']);
 
 const skipString = (src, i) => {
@@ -68,6 +70,7 @@ const ANCHORS = {
   codexGear: ['{id:"leather",name:"Leather",pieces:', '['],
   rarities: ['{0:"Comum",1:"Incomum"', '{'],
   bossWave: ['boss:{hpMult:', '{'],
+  spells: ['words:"exevo mort ora"', '['],
 };
 
 const pickMonster = ([key, m], overrides) => {
@@ -185,5 +188,6 @@ export const extractDataset = (src, { version = null } = {}) => {
     codexGear,
     rarities: Object.entries(read('rarities')).sort(([a], [b]) => Number(a) - Number(b)).map(([, name]) => name),
     bossWave: read('bossWave').boss,
+    spells: attackSpells(read('spells')),
   };
 };

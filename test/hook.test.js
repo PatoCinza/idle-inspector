@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createCapture } from '../src/capture/hook.js';
+import { mergeRotation } from '../src/rotation.js';
 import { roomData, patchFrame } from './support/msgpack.js';
 
 const setup = () => {
@@ -52,7 +54,7 @@ test('combatlog é agregado em lotes de 5 s sem perder golpes', () => {
   const events = [];
   const capture = createCapture({ emit: (event) => events.push(event), now: () => clock });
   [[0, 10], [1000, 20], [3000, 30], [5000, 40], [6000, 50]].forEach(([t, amount]) => { clock = t; capture.incoming(roomData('combatlog', [hit('knight', amount)])); });
-  assert.deepEqual(events.map((e) => [e.t, e.combat.members.knight]), [[0, { hits: 1, dealt: 10, crits: 0, critDealt: 0 }], [5000, { hits: 3, dealt: 90, crits: 0, critDealt: 0 }]]);
+  assert.deepEqual(events.filter((e) => e.type === 'combat').map((e) => [e.t, e.combat.members.knight]), [[0, { hits: 1, dealt: 10, crits: 0, critDealt: 0 }], [5000, { hits: 3, dealt: 90, crits: 0, critDealt: 0 }]]);
 });
 
 test('combatlog sem dano causado não emite', () => {
@@ -151,4 +153,28 @@ test('configuração de loot vira evento com a lista de "Não coletar"', () => {
   const { capture, events } = setup();
   capture.incoming(patchFrame(15, JSON.stringify({ tiers: [], classes: [], skip: ['serpent sword', 'devil helmet#2', 7], noSell: [], codexOnly: false })));
   assert.deepEqual(events, [{ type: 'lootConfig', config: { skip: ['serpent sword', 'devil helmet#2'], codexOnly: false }, t: 1234 }]);
+});
+
+const rotationSpells = JSON.parse(readFileSync(new URL('../data/spells.json', import.meta.url))).spells;
+const rotationFixture = JSON.parse(readFileSync(new URL('./fixtures/rotation-bloated.json', import.meta.url)));
+
+test('cast, dano e eco viram eventos de rotação em lotes de 5 s', () => {
+  let clock = 0;
+  const events = [];
+  const capture = createCapture({ emit: (event) => events.push(event), now: () => clock, spells: rotationSpells });
+  rotationFixture.frames.forEach(({ dt, type, payload }) => { clock = dt; capture.incoming(roomData(type, payload)); });
+  clock = 9000;
+  capture.incoming(roomData('combatlog', [{ k: 'dealt', voc: 'knight', foe: { kind: 'mob', name: 'Troll' }, amount: 5, el: 'physical', crit: false }]));
+  const rotation = events.filter((event) => event.type === 'rotation');
+  assert.deepEqual(rotation.map((event) => event.t), [0, 9000]);
+  const total = rotation.map((event) => event.stats).reduce((a, b) => mergeRotation(a, b));
+  assert.equal(total.members.sorcerer.mobs.spells['exevo mort ora'].echo, 40880);
+  assert.equal(total.members.knight.mobs.spells['exori amp kor'].casts, 1);
+});
+
+test('sem a tabela de magias, a captura continua e não quebra nada', () => {
+  const { capture, events } = setup();
+  capture.incoming(roomData('fx', [{ t: 'cd', slot: 2, words: 'exevo mort ora', group: 'attack' }]));
+  capture.incoming(roomData('notify', { kind: 'wave', params: { n: 3, total: 10 } }));
+  assert.deepEqual(events.filter((event) => event.type === 'error'), []);
 });

@@ -1,5 +1,6 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { extractDataset } from '../src/extract.js';
+import { hookSpells } from '../src/spells.js';
 
 const ORIGIN = process.env.BAIAK_ORIGIN ?? 'https://baiakidle.com';
 
@@ -15,4 +16,5 @@ const source = await fetch(url).then((r) => r.text());
 const dataset = extractDataset(source, { version: url.split('/').pop() });
 await mkdir(new URL('../data/', import.meta.url), { recursive: true });
 await writeFile(new URL('../data/game.json', import.meta.url), JSON.stringify(dataset));
-console.log(`${dataset.version}: ${Object.keys(dataset.monsters).length} monstros, ${dataset.hunts.length} hunts, ${dataset.charms.length} charms`);
+await writeFile(new URL('../data/spells.json', import.meta.url), JSON.stringify({ version: dataset.version, spells: hookSpells(dataset.spells) }));
+console.log(`${dataset.version}: ${Object.keys(dataset.monsters).length} monstros, ${dataset.hunts.length} hunts, ${dataset.charms.length} charms, ${dataset.spells.length} magias`);

@@ -53,6 +53,12 @@ export const TABS = [
     how: 'Precisa da party e dos charms lidos e de 2 min de medição. Use "Otimizar Lucro/h" ou "Otimizar XP/h" conforme o seu objetivo.',
   },
   {
+    id: 'rotation',
+    name: 'Rotação',
+    what: 'Quanto cada magia e runa rende por cast para cada personagem, nas ondas e na sala do boss, e se uma magia de cooldown maior compensa no lugar da runa.',
+    how: 'Mede sozinha pelo tráfego. Leia a party para a coluna Medido/esperado. Para comparar rotações, deixe cada uma rodar várias salas: a tabela de salas mostra o tempo de cada rotação.',
+  },
+  {
     id: 'sample',
     name: 'Amostra',
     what: 'Chance e quantidade de cada drop medidas kill a kill, comparadas com a tabela do jogo.',

@@ -1,13 +1,14 @@
 import { initialSession, reduceSession, windowOf, isLive } from './session.js';
 import { savedRates } from './plan.js';
 import { mergeCombat } from './combat.js';
+import { mergeRotation } from './rotation.js';
 import { lootPcts } from './drops.js';
 import { partyLootFactor } from './model.js';
 import { initialDropLog, observeSnapshot, disarm, gutOn } from './drop-log.js';
 
 export const APP_VERSION = 1;
 
-export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null });
+export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, rotation: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null });
 
 const SESSION_EVENTS = new Set(['snapshot', 'reset', 'connect']);
 
@@ -43,6 +44,7 @@ export const reduceApp = (app, event, env = {}) => {
       ...app,
       session,
       combat: session.since === app.session.since ? app.combat ?? null : null,
+      rotation: session.since === app.session.since ? app.rotation ?? null : null,
       xp: session.since === app.session.since ? app.xp ?? 0 : 0,
       phases: session.since === app.session.since ? app.phases ?? [] : [],
       huntRates: rates ? { ...app.huntRates, [window.huntId]: rates } : app.huntRates ?? {},
@@ -51,6 +53,7 @@ export const reduceApp = (app, event, env = {}) => {
     };
   }
   if (event.type === 'combat') return { ...app, combat: mergeCombat(app.combat, event.combat) };
+  if (event.type === 'rotation') return { ...app, rotation: mergeRotation(app.rotation, event.stats) };
   if (event.type === 'xp') return { ...app, xp: (app.xp ?? 0) + event.xp };
   if (event.type === 'lootConfig') return { ...app, lootConfig: event.config };
   if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), { ms: event.ms, charms: app.charmSlots ? charmPlacement(app.charmSlots) : null }] };

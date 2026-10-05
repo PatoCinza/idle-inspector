@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildEvents, emptyUsage, countUsage, initialCursor, anonymousMember, batchOf, POSTHOG, MAX_PHASES } from '../src/telemetry.js';
+import { buildEvents, emptyUsage, countUsage, initialCursor, anonymousMember, batchOf, POSTHOG, MAX_PHASES, MAX_ROTATION_ROOMS } from '../src/telemetry.js';
+import { MAX_ROOMS } from '../src/rotation.js';
 import { initialApp, reduceApp } from '../src/app-state.js';
 import { DELIVERY, KEYS, deliveryOf, advancesCursor } from '../src/posthog.js';
 import { startTelemetry } from '../extension/content/telemetry.js';
@@ -30,12 +31,13 @@ const hunting = () => [
   snapshot(3 * MIN, { infernal_phantom: 30 }, { 'crystal coin': 20, 'ultimate health potion': 50 }, { 'ultimate mana potion': { n: 10, g: 4880 } }),
 ].reduce((app, event) => reduceApp(app, event, { dataset }), initialApp());
 
-test('evento da hunt não leva nomes e arredonda o level', () => {
+test('evento da hunt não leva nomes e leva o level exato e a faixa de 50', () => {
   const { events } = buildEvents({ dataset, app: hunting() });
   const json = JSON.stringify(events);
   members.forEach(({ name }) => assert.ok(!json.includes(name), name));
   const window = events.find((e) => e.event === 'blp_hunt_window').properties;
   assert.equal(window.hunt, 'infernalmdemon-cave');
+  assert.deepEqual(window.party.map((m) => m.level), [972, 951, 956]);
   assert.deepEqual(window.party.map((m) => m.level_bucket), [950, 950, 950]);
   const charms = Object.fromEntries(window.charms.map((c) => [c.charm, c]));
   assert.deepEqual(charms.gut, { charm: 'gut', tier: 3, monster: 'infernal_phantom', in_hunt: true });
@@ -99,6 +101,36 @@ test('a identidade vai antes das propriedades, para o relay achar a instalação
   assert.equal(properties.$process_person_profile, false);
 });
 
+const rotationStats = JSON.parse(readFileSync(new URL('./fixtures/rotation-stats-bloated.json', import.meta.url)));
+
+test('rotação vai com o level, a faixa de level e o magic level de cada vocação, sem nomes', () => {
+  const party = [{ ...members[2], magicLevel: 168, spellDmgPct: 115.579, skills: { magic: { base: 124, bonus: 44 } }, proficiency: { weapon: 'Soultainter', level: 8, maxLevel: 9, bonuses: [] } }, members[0], members[1]];
+  const app = [{ type: 'party', t: MIN, members: party }, { type: 'rotation', t: MIN, stats: rotationStats }].reduce((state, event) => reduceApp(state, event, { dataset }), hunting());
+  const { events } = buildEvents({ dataset, app });
+  const json = JSON.stringify(events);
+  members.forEach(({ name }) => assert.ok(!json.includes(name), name));
+  const { rotation } = events.find((e) => e.event === 'blp_hunt_window').properties;
+  const mage = rotation.members.find((member) => member.vocation === 'sorcerer');
+  assert.equal(mage.level, 956);
+  assert.equal(mage.level_bucket, 950);
+  assert.equal(mage.magic_level, 168);
+  assert.deepEqual(mage.skills, { magic: 168 });
+  assert.equal(mage.spell_dmg_pct, 115.579);
+  assert.equal(mage.proficiency.weapon, 'Soultainter');
+  const echo = mage.spells.find((spell) => spell.words === 'exevo mort ora');
+  assert.deepEqual([echo.period, echo.casts, echo.echo], ['mobs', 42, 462888]);
+  assert.deepEqual(echo.normal['Bloated Man-Maggot'], [28, 59073, 128954533]);
+  assert.equal(rotation.members.find((member) => member.vocation === 'druid').magic_level, null);
+  assert.equal(rotation.rooms.length, 7);
+  assert.deepEqual(rotation.rooms[0].spells.knight['exori amp kor'], [3, 38913]);
+  assert.equal(rotation.minutes.mobs, 10.86);
+});
+
+test('janela sem rotação medida manda rotation nulo', () => {
+  const window = buildEvents({ dataset, app: hunting() }).events.find((e) => e.event === 'blp_hunt_window').properties;
+  assert.equal(window.rotation, null);
+});
+
 test('cada sala leva os charms equipados quando ela terminou, para o A/B', () => {
   const adrenalineId = idOf('adrenaline_burst');
   const app = [
@@ -121,11 +153,23 @@ test('o pior lote possível cabe no limite de 1 MB do relay', () => {
   const everyDrop = (monster) => Object.fromEntries((monster.loot ?? []).map((entry) => [entry.name, { drops: 99999, qty: quantities(entry.max) }]));
   const monsters = Object.fromEntries(Object.entries(dataset.monsters).map(([key, monster]) => [key, { kills: 99999, factor: 99999.1234, items: everyDrop(monster) }]));
   const everyCharm = Object.fromEntries(dataset.charms.slice(0, 12).map((charm) => [charm.id, 'infernal_phantom']));
-  const app = { ...hunting(), phases: Array.from({ length: 2 * MAX_PHASES }, () => ({ ms: 123456, charms: everyCharm })), dropLog: { monsters } };
+  const vocations = ['knight', 'paladin', 'sorcerer', 'druid', 'monk'];
+  const foes = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`Some Long Creature Name ${i} Boss`, { hits: 99999, dealt: 999999999, sq: 999999999999999 }]));
+  const spellStats = { casts: 99999, dealt: 999999999, sq: 999999999999999, hits: 99999, crits: 99999, critDealt: 999999999, echo: 999999999, normal: foes };
+  const spellsOf = (vocation) => Object.fromEntries(dataset.spells.filter((spell) => spell.vocs.includes(vocation)).map((spell) => [spell.words, spellStats]));
+  const part = (vocation) => ({ spells: spellsOf(vocation), loose: { auto: { hits: 99999, dealt: 999999999, crits: 99999 }, proc: { hits: 99999, dealt: 999999999, crits: 99999 }, other: { hits: 99999, dealt: 999999999, crits: 99999 } } });
+  const roomSpells = Object.fromEntries(vocations.map((vocation) => [vocation, Object.fromEntries(Object.keys(spellsOf(vocation)).slice(0, 6).map((words) => [words, { casts: 999, dealt: 999999999, sq: 999999999999999 }]))]));
+  const rotation = {
+    time: { mobs: 99999999, boss: 99999999 },
+    members: Object.fromEntries(vocations.map((vocation) => [vocation, { mobs: part(vocation), boss: part(vocation) }])),
+    rooms: Array.from({ length: MAX_ROOMS }, () => ({ ms: 123456, spells: roomSpells })),
+  };
+  const app = { ...hunting(), phases: Array.from({ length: 2 * MAX_PHASES }, () => ({ ms: 123456, charms: everyCharm })), dropLog: { monsters }, rotation };
   const usage = ['drops', 'bestiary', 'codex', 'charms', 'sample', 'start'].reduce((total, tab) => countUsage(total, { type: 'tab', tab }), emptyUsage());
   const { events } = buildEvents({ dataset, app, usage });
   const body = JSON.stringify(batchOf({ events, installId: crypto.randomUUID(), version: '10.10.10', now: Date.now() }));
   assert.equal(events.length, Object.keys(dataset.monsters).length + 2);
+  assert.equal(events.find((e) => e.event === 'blp_hunt_window').properties.rotation.rooms.length, MAX_ROTATION_ROOMS);
   assert.ok(Buffer.byteLength(body) < RELAY_MAX_BYTES * 0.9, `${Buffer.byteLength(body)} bytes`);
 });
 

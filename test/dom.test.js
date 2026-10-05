@@ -18,20 +18,35 @@ const panelEn = [
 
 test('painel real em português, com cabeçalhos em maiúsculas, é lido por inteiro', () => {
   assert.deepEqual(parseCharacter(panelPt), {
-    level: 956, maxHp: 5544, maxMana: 37669, lootPct: 4, critChance: 24.472, critDmg: 153.534,
+    level: 956, maxHp: 5544, maxMana: 37669, lootPct: 4, critChance: 24.472, critDmg: 153.534, spellDmgPct: 115.579,
+    magicLevel: 165,
+    skills: { magic: { base: 124, bonus: 41 }, fist: { base: 27, bonus: 10 } },
+    proficiency: { weapon: 'Soultainter', level: 7, maxLevel: 9, bonuses: [{ label: 'Chance de crítico', value: 1, pct: true }, { label: 'Dano crítico', value: 20, pct: true }] },
   });
 });
 
 test('painel atual, com o texto do painel sem quebras de linha entre rótulo e valor, é lido por inteiro', () => {
   assert.deepEqual(parseCharacter(panelPtInline), {
-    level: 974, maxHp: 5688, maxMana: 38361, lootPct: 4, critChance: 24.472, critDmg: 153.534,
+    level: 974, maxHp: 5688, maxMana: 38361, lootPct: 4, critChance: 24.472, critDmg: 153.534, spellDmgPct: 0,
+    magicLevel: 168,
+    skills: { magic: { base: 124, bonus: 44 }, fist: { base: 27, bonus: 10 } },
+    proficiency: { weapon: 'Soultainter', level: 8, maxLevel: 9, bonuses: [{ label: 'Magic', value: 2, pct: false }, { label: 'Chance de crítico', value: 1, pct: true }, { label: 'Dano crítico', value: 20, pct: true }] },
   });
 });
 
 test('painel em inglês é lido e o bônus da proficiência não entra no Loot', () => {
   assert.deepEqual(parseCharacter(panelEn), {
-    level: 1204, maxHp: 9870, maxMana: 4500, lootPct: 9.8, critChance: 12.5, critDmg: 80,
+    level: 1204, maxHp: 9870, maxMana: 4500, lootPct: 9.8, critChance: 12.5, critDmg: 80, spellDmgPct: 0,
+    proficiency: { weapon: null, level: null, maxLevel: null, bonuses: [{ label: 'Loot', value: 50, pct: true }] },
   });
+});
+
+test('perk de proficiência de uma magia vem com o nome da magia no rótulo', () => {
+  const text = 'Nível\n1000\nCapacidade\n1\nSkills (sobem por uso)\nMagic\n150 +20\nBônus (itens + build)\nDano de magia\n+100%\nProficiência (arma na mão)\nSoultainter\nnível 9/9\nDeath Echo — Dano crítico\n+12,5%\nAddon (conta)';
+  const parsed = parseCharacter(text);
+  assert.equal(parsed.magicLevel, 170);
+  assert.equal(parsed.spellDmgPct, 100);
+  assert.deepEqual(parsed.proficiency.bonuses, [{ label: 'Death Echo — Dano crítico', value: 12.5, pct: true }]);
 });
 
 test('texto sem a seção de bônus devolve bônus zero', () => {
