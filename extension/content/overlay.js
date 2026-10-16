@@ -15,6 +15,8 @@ import { renderRotation } from '../../src/overlay/rotation-view.js';
 import { recommendHunts } from '../../src/recommend.js';
 import { renderHunts } from '../../src/overlay/hunts-view.js';
 import { liveWindow } from '../../src/plan.js';
+import { xpAnalysis } from '../../src/xp-tracker.js';
+import { renderXp } from '../../src/overlay/xp-view.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
@@ -38,6 +40,7 @@ const SHELL = `<style>${STYLES}</style>
 
 const TABS = [
   { id: 'welcome', label: 'Início' },
+  { id: 'xp', label: 'XP' },
   { id: 'hunts', label: 'Hunts' },
   { id: 'drops', label: 'Drops' },
   { id: 'bestiary', label: 'Bestiário' },
@@ -168,6 +171,11 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
       saved: plan.saved,
     })),
     welcome: (plan) => renderWelcome({ checklist: welcomeChecklist({ dataset, app, plan }) }),
+    xp: () => renderXp(xpAnalysis({
+      track: app.xpTrack ?? null,
+      pendingTeamXp: (app.xp ?? 0) - (app.xpTrack?.rooms.at(-1)?.teamXp ?? app.xp ?? 0),
+      now: Date.now(),
+    })),
     hunts: () => renderHunts(recommendHunts({
       dataset,
       live: liveWindow(dataset, app.session),

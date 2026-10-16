@@ -40,7 +40,7 @@ npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 - Edge, Opera (e Opera GX) e Brave: o mesmo build do Chrome. `edge://extensions` ou `opera://extensions` → Modo de desenvolvedor → Carregar sem compactação (no Edge, "Carregar sem pacote") → `dist/extension/chrome`.
 - Firefox (140+; Android 142+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
 
-Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome, Edge e Opera (`-chrome-edge-opera.zip`: o mesmo build do Chrome, porque Edge, Opera e Brave são baseados no Chromium; pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
+Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome, Edge e Opera (`-chrome-edge-opera.zip`: o mesmo build do Chrome, porque Edge, Opera e Brave são baseados no Chromium; pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova com `npm run bump:ext` (patch; `-- minor`, `-- major` ou `-- 1.2.3` para escolher), que também atualiza o `package-lock.json`, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
 
 ### Site (baiak-loot.pages.dev)
 
@@ -61,6 +61,16 @@ O seletor "Planejar" (abas Drops, Bestiário, Codex e Amostra) escolhe qualquer 
 A aba Amostra guarda, no navegador, cada kill isolada (uma atualização do servidor com uma kill só): quantas kills de cada criatura, quantas vezes cada item caiu e em que quantidade. Ela compara a chance medida com a prevista (intervalo de 95%) e marca quantidade acima do máximo ou item fora da tabela. Com 30 drops ou mais de um item, a quantidade medida substitui a média da tabela nas abas Drops e Charms. A amostra soma todas as sessões e não zera com o Hunt Analyzer.
 
 O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida), cada cast de magia de ataque e cada ataque básico (`fx`), as ondas e salas (`notify`) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico, bônus de loot, XP%, proteção por elemento, magic level, Dano de magia e a proficiência da arma de cada membro e as cartas da janela de Charms.
+
+### Aba XP
+
+O XP/h real da equipe e de cada personagem, sem a oscilação do Hunt Analyzer.
+
+- **Real:** a cada sala completa (`notify` `phase`), a extensão lê a barra de experiência de cada membro da party (o tooltip "Faltam X XP para o nível N" e o level), 2,5 s depois, quando o jogo já pagou a XP Stack. XP total = XP do próximo level (curva do Tibia, 50/3 × (L³ − 6L² + 17L − 12), conferida com a XP do painel de status) − o que falta. O XP/h é a XP creditada entre salas ÷ o tempo entre elas: na sessão inteira e nas últimas 10 salas. O nível e a XP vêm da tela porque ficam em campos binários do estado do jogo; o resto vem do tráfego.
+- **Ao vivo:** a XP já creditada mais a XP Stack da sala atual (soma dos `fx` `xp` desde a última sala), dividida pela parte de cada um na sessão. A XP Stack só é paga inteira quando o boss cai; quem morre antes leva só uma parte dela, então o ao vivo é o que vocês fazem se o boss cair.
+- **Próximo level:** o que falta ÷ o XP/h real das últimas 10 salas (ou da sessão, com menos de 3), atualizado a cada sala.
+- **Mortes:** salas que terminaram com o personagem marcado como morto no cartão da party.
+- Zerar o Hunt Analyzer ou trocar de hunt recomeça a contagem, como nas outras abas.
 
 ### Aba Hunts
 
@@ -200,6 +210,7 @@ O preço de cada item segue a mesma regra do Loot Analyser do jogo: o `value` do
 | `scripts/compare.js` | CLI do A/B |
 | `scripts/fetch-images.js` | Baixa os ícones dos itens |
 | `src/run.js`, `scripts/hunt-runs.js` | Sala completa: xp, HP total e dano por segundo das criaturas e do boss |
+| `src/xp-tracker.js`, `src/dom/party-xp.js`, `src/overlay/xp-view.js` | Aba XP: barras de experiência a cada sala, XP/h real e ao vivo, tempo para o próximo level |
 | `src/recommend.js`, `src/overlay/hunts-view.js` | Aba Hunts: referência medida, ritmo estimado, XP/h e lucro/h por hunt, ataque e defesa |
 | `site/` | Template, estilos e app do site |
 | `test/` | Testes com `node:test`, incluindo a calibração com as sessões do Rotten Golem e do Infernal Demon |

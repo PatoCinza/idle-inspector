@@ -6,10 +6,11 @@ import { lootPcts } from './drops.js';
 import { partyLootFactor } from './model.js';
 import { initialDropLog, observeSnapshot, disarm, gutOn } from './drop-log.js';
 import { referenceOf } from './recommend.js';
+import { initialXpTrack, reduceXpTrack } from './xp-tracker.js';
 
 export const APP_VERSION = 1;
 
-export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, rotation: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null, reference: null });
+export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, rotation: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null, reference: null, xpTrack: initialXpTrack() });
 
 const SESSION_EVENTS = new Set(['snapshot', 'reset', 'connect']);
 
@@ -56,6 +57,7 @@ export const reduceApp = (app, event, env = {}) => {
       huntRates: rates ? { ...app.huntRates, [window.huntId]: rates } : app.huntRates ?? {},
       bestiary: event.bestiary ?? app.bestiary ?? null,
       reference: nextReference(app, session, window, env, event.t),
+      xpTrack: session.since === app.session.since ? app.xpTrack ?? initialXpTrack() : { ...initialXpTrack(), current: app.xpTrack?.current ?? null },
       dropLog,
     };
   }
@@ -71,6 +73,7 @@ export const reduceApp = (app, event, env = {}) => {
   }
   if (event.type === 'procs') return { ...app, procs: event.procs };
   if (event.type === 'charmStats') return { ...app, charmStats: event.stats };
+  if (event.type === 'partyXp') return { ...app, xpTrack: reduceXpTrack(app.xpTrack, event, app.xp ?? 0) };
   if (event.type === 'party') return { ...app, party: { members: event.members, readAt: event.t } };
   return app;
 };

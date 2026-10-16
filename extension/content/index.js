@@ -6,6 +6,7 @@ import { mountOverlay } from './overlay.js';
 import { readParty, readCharmCards } from '../../src/dom/reader.js';
 import { slotsFromCards } from '../../src/dom/charms.js';
 import { readSummary } from '../../src/dom/summary.js';
+import { readPartyXp } from '../../src/dom/party-xp.js';
 import { startTelemetry } from './telemetry.js';
 import { KEYS } from '../../src/telemetry.js';
 import { needsNotice } from '../../src/posthog.js';
@@ -55,15 +56,34 @@ const readPartyAndCharms = async () => {
   return readSummary({ members, cards });
 };
 
+const ROOM_PAYOUT_MS = 2500;
+const FIRST_READ_MS = 3000;
+
+const dispatchPartyXp = (room) => {
+  const members = readPartyXp(document);
+  if (members.length) bridge.dispatch({ type: 'partyXp', members, room });
+};
+
+let seenPhases = null;
+
+const watchRooms = (app) => {
+  const phases = app.phases?.length ?? 0;
+  if (seenPhases !== null && phases > seenPhases) setTimeout(() => dispatchPartyXp(true), ROOM_PAYOUT_MS);
+  seenPhases = phases;
+};
+
 const bridge = createBridge({
   win: window,
   storage: extensionStorage,
   reduce: (app, event) => reduceApp(app, event, { dataset }),
   onChange: (app) => {
     telemetry.observe(app);
+    watchRooms(app);
     overlay.then((mounted) => mounted.update(app));
   },
 });
+
+setTimeout(() => dispatchPartyXp(false), FIRST_READ_MS);
 
 window.addEventListener('pagehide', () => {
   bridge.flush();
