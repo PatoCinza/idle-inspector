@@ -5,10 +5,11 @@ import { mergeRotation } from './rotation.js';
 import { lootPcts } from './drops.js';
 import { partyLootFactor } from './model.js';
 import { initialDropLog, observeSnapshot, disarm, gutOn } from './drop-log.js';
+import { referenceOf } from './recommend.js';
 
 export const APP_VERSION = 1;
 
-export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, rotation: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null });
+export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, rotation: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null, reference: null });
 
 const SESSION_EVENTS = new Set(['snapshot', 'reset', 'connect']);
 
@@ -34,6 +35,11 @@ const DROP_LOG = {
   connect: (app) => disarm(logOf(app)),
 };
 
+const nextReference = (app, session, window, { dataset }, t) => {
+  if (!dataset || !isLive(session) || session.since !== app.session.since) return app.reference ?? null;
+  return referenceOf({ dataset, window, combat: app.combat, xp: app.xp ?? 0, t }) ?? app.reference ?? null;
+};
+
 export const reduceApp = (app, event, env = {}) => {
   if (SESSION_EVENTS.has(event.type)) {
     const dropLog = DROP_LOG[event.type](app, event, env);
@@ -49,6 +55,7 @@ export const reduceApp = (app, event, env = {}) => {
       phases: session.since === app.session.since ? app.phases ?? [] : [],
       huntRates: rates ? { ...app.huntRates, [window.huntId]: rates } : app.huntRates ?? {},
       bestiary: event.bestiary ?? app.bestiary ?? null,
+      reference: nextReference(app, session, window, env, event.t),
       dropLog,
     };
   }

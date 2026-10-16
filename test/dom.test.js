@@ -18,7 +18,7 @@ const panelEn = [
 
 test('painel real em português, com cabeçalhos em maiúsculas, é lido por inteiro', () => {
   assert.deepEqual(parseCharacter(panelPt), {
-    level: 956, maxHp: 5544, maxMana: 37669, lootPct: 4, critChance: 24.472, critDmg: 153.534, spellDmgPct: 115.579,
+    level: 956, maxHp: 5544, maxMana: 37669, lootPct: 4, critChance: 24.472, critDmg: 153.534, spellDmgPct: 115.579, xpPct: 37,
     magicLevel: 165,
     skills: { magic: { base: 124, bonus: 41 }, fist: { base: 27, bonus: 10 } },
     proficiency: { weapon: 'Soultainter', level: 7, maxLevel: 9, bonuses: [{ label: 'Chance de crítico', value: 1, pct: true }, { label: 'Dano crítico', value: 20, pct: true }] },
@@ -27,7 +27,7 @@ test('painel real em português, com cabeçalhos em maiúsculas, é lido por int
 
 test('painel atual, com o texto do painel sem quebras de linha entre rótulo e valor, é lido por inteiro', () => {
   assert.deepEqual(parseCharacter(panelPtInline), {
-    level: 974, maxHp: 5688, maxMana: 38361, lootPct: 4, critChance: 24.472, critDmg: 153.534, spellDmgPct: 0,
+    level: 974, maxHp: 5688, maxMana: 38361, lootPct: 4, critChance: 24.472, critDmg: 153.534, spellDmgPct: 0, xpPct: 32,
     magicLevel: 168,
     skills: { magic: { base: 124, bonus: 44 }, fist: { base: 27, bonus: 10 } },
     proficiency: { weapon: 'Soultainter', level: 8, maxLevel: 9, bonuses: [{ label: 'Magic', value: 2, pct: false }, { label: 'Chance de crítico', value: 1, pct: true }, { label: 'Dano crítico', value: 20, pct: true }] },
@@ -36,7 +36,7 @@ test('painel atual, com o texto do painel sem quebras de linha entre rótulo e v
 
 test('painel em inglês é lido e o bônus da proficiência não entra no Loot', () => {
   assert.deepEqual(parseCharacter(panelEn), {
-    level: 1204, maxHp: 9870, maxMana: 4500, lootPct: 9.8, critChance: 12.5, critDmg: 80, spellDmgPct: 0,
+    level: 1204, maxHp: 9870, maxMana: 4500, lootPct: 9.8, critChance: 12.5, critDmg: 80, spellDmgPct: 0, xpPct: 0,
     proficiency: { weapon: null, level: null, maxLevel: null, bonuses: [{ label: 'Loot', value: 50, pct: true }] },
   });
 });
@@ -182,4 +182,15 @@ test('cards reais do jogo mapeiam Gut e Scavenge para as criaturas certas', () =
   const keyOf = (name) => Object.entries(dataset.monsters).find(([, m]) => m.name === name)[0];
   assert.deepEqual(slots[idOf('scavenge')], { tier: 3, monsterKey: keyOf('Bloated Man-Maggot') });
   assert.deepEqual(slots[idOf('gut')], { tier: 3, monsterKey: keyOf('Oozing Corpus') });
+});
+
+test('XP e proteções por elemento vêm do bônus total, não dos itens', () => {
+  const text = 'Nível\n1300\nCapacidade\n1\nBônus (itens + build + proficiência + Codex + boosts)Ataque+10.421%XP+46%Proteção physical+9.643%Proteção energy+16.604%Dano energy+25.2%Proteção death+28.254%Proficiência (arma na mão)SoultainterStats dos itensSoulshanks +3XP+5%Proteção death+10.459%';
+  const parsed = parseCharacter(text);
+  assert.equal(parsed.xpPct, 46);
+  assert.deepEqual(parsed.protection, { physical: 9.643, energy: 16.604, death: 28.254 });
+});
+
+test('proteção negativa é lida com o sinal', () => {
+  assert.deepEqual(parseCharacter('Nível\n10\nCapacidade\n1\nBonuses (items + build)\nProtection fire\n-6%\nAddon (account)').protection, { fire: -6 });
 });

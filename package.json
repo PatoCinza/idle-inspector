@@ -8,6 +8,7 @@
     "extract": "node scripts/extract.js",
     "build": "node scripts/build.js",
     "images": "node scripts/fetch-images.js",
+    "runs": "node scripts/hunt-runs.js",
     "compare": "node scripts/compare.js",
     "build:ext": "node scripts/build-extension.js",
     "package:ext": "node scripts/package-extension.js",

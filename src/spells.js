@@ -43,7 +43,7 @@ const fitLinear = (dmg) => {
   }
 };
 
-export const toSpell = ({ words, name, vocs, level, mana, cd, type, radius, chain, echo, goldCost, dmg }) => ({
+export const toSpell = ({ words, name, vocs, spec, level, mana, cd, type, radius, chain, echo, goldCost, dmg }) => ({
   words,
   name,
   vocs,
@@ -53,6 +53,7 @@ export const toSpell = ({ words, name, vocs, level, mana, cd, type, radius, chai
   type,
   element: elementOf(words),
   rune: goldCost != null,
+  ...(spec ? { spec } : {}),
   ...(goldCost != null ? { goldCost } : {}),
   ...(radius != null ? { radius } : {}),
   ...(chain ? { chain } : {}),

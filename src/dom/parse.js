@@ -11,6 +11,9 @@ const PROFICIENCY_END = /Addon\s*\(|Stats dos itens|Item stats/i;
 const PROFICIENCY_LEVEL = /(?:n\u00edvel|level)\s*(\d+)\s*\/\s*(\d+)/i;
 const PROFICIENCY_BONUS = /([^\n+\d][^\n+]*?)\s*\+\s*([\d.,]+)\s*(%?)/g;
 const SKILL = /(Magic|Fist|Sword|Axe|Club|Distance|Shielding)\s*(\d+)\s*(?:\+\s*(\d+))?/g;
+const PROTECTION = /(?:Prote\u00e7\u00e3o|Protection)\s*(physical|energy|earth|fire|ice|holy|death)\s*\+?\s*(-?[\d.,]+)%/gi;
+
+const protectionOf = (bonus) => Object.fromEntries([...bonus.matchAll(PROTECTION)].map(([, element, value]) => [element.toLowerCase(), toDecimal(value)]));
 
 const skillsOf = (text) => Object.fromEntries(
   [...text.split(SECTION_START)[0].matchAll(SKILL)]
@@ -39,6 +42,7 @@ export const parseCharacter = (text) => {
   };
   const skills = skillsOf(text);
   const proficiency = proficiencyOf(text);
+  const protection = protectionOf(bonus);
   return {
     level: toNumber(head.match(/(?:N\u00edvel|Level)\s*([\d.]+)/i)?.[1] ?? 0),
     maxHp: toNumber(head.match(/(?:Pontos de Vida|Hit Points)\s*([\d.]+)/i)?.[1] ?? 0),
@@ -47,6 +51,8 @@ export const parseCharacter = (text) => {
     critChance: percent(/(?:Chance de cr\u00edtico|Crit chance)\s*\+?([\d.,]+)%/i),
     critDmg: percent(/(?:Dano cr\u00edtico|Crit damage)\s*\+?([\d.,]+)%/i),
     spellDmgPct: percent(/(?:Dano de magia|Spell damage|Magic damage)\s*\+?([\d.,]+)%/i),
+    xpPct: percent(/\bXP\s*\+\s*([\d.,]+)%/),
+    ...(Object.keys(protection).length ? { protection } : {}),
     ...(skills.magic ? { magicLevel: skills.magic.base + skills.magic.bonus, skills } : {}),
     ...(proficiency ? { proficiency } : {}),
   };

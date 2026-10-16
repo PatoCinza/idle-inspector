@@ -22,8 +22,9 @@ test('combatlog soma o dano causado por vocação e criatura, e o recebido por c
     members: { druid: { hits: 2, dealt: 30000, crits: 1, critDealt: 20000 }, knight: { hits: 1, dealt: 7, crits: 0, critDealt: 0 } },
     foes: { 'Bloated Man-Maggot': 30000, 'Oozing Corpus': 7 },
     taken: { 'Oozing Corpus': { knight: { hits: 1, hp: 3114, mana: 0 } } },
+    elements: { ice: 30007 },
   });
-  assert.deepEqual(combatFromLog(undefined), { members: {}, foes: {}, taken: {} });
+  assert.deepEqual(combatFromLog(undefined), { members: {}, foes: {}, taken: {}, elements: {} });
 });
 
 const taken = (voc, hp, mana = 0, name = 'Bloated Man-Maggot', kind = 'mob') => ({ k: 'taken', voc, foe: { kind, name }, el: 'earth', hp, mana, crit: false });
@@ -78,4 +79,10 @@ test('dealtPerHour mapeia o nome da criatura, junta o boss na criatura dele e ig
   assert.deepEqual(dealtPerHour({ dataset, hunt, combat, minutes: 30 }), { bloated_man_maggot: 1400, oozing_corpus: 600 });
   assert.equal(dealtPerHour({ dataset, hunt, combat, minutes: 0 }), null);
   assert.equal(dealtPerHour({ dataset, hunt, combat: null, minutes: 30 }), null);
+});
+
+test('dano causado é somado por elemento e acumula entre lotes', () => {
+  const fire = { ...dealt('sorcerer', 400), el: 'fire' };
+  const merged = mergeCombat(combatFromLog([dealt('druid', 100), fire]), combatFromLog([dealt('druid', 50)]));
+  assert.deepEqual(merged.elements, { ice: 150, fire: 400 });
 });

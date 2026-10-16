@@ -1,4 +1,4 @@
-export const EMPTY_COMBAT = { members: {}, foes: {}, taken: {} };
+export const EMPTY_COMBAT = { members: {}, foes: {}, taken: {}, elements: {} };
 
 export const MIN_CRIT_HITS = 30;
 
@@ -17,6 +17,7 @@ const addDealt = (combat, entry) => ({
   ...combat,
   members: addTo(combat.members, entry.voc, { hits: 1, dealt: entry.amount, crits: entry.crit ? 1 : 0, critDealt: entry.crit ? entry.amount : 0 }),
   foes: entry.foe?.name ? { ...combat.foes, [entry.foe.name]: (combat.foes[entry.foe.name] ?? 0) + entry.amount } : combat.foes,
+  elements: entry.el ? { ...combat.elements, [entry.el]: (combat.elements[entry.el] ?? 0) + entry.amount } : combat.elements,
 });
 
 const addTaken = (combat, entry) => ({
@@ -44,6 +45,7 @@ export const mergeCombat = (a, b) => ({
   members: mergeMaps(a?.members, b?.members, mergeStats),
   foes: mergeMaps(a?.foes, b?.foes, addNumbers),
   taken: mergeMaps(a?.taken, b?.taken, (x, y) => mergeMaps(x, y, mergeStats)),
+  elements: mergeMaps(a?.elements, b?.elements, addNumbers),
 });
 
 export const isEmptyCombat = (combat) => !Object.keys(combat?.members ?? {}).length;

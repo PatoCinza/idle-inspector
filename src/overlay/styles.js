@@ -78,7 +78,12 @@ tr.deliverable td:first-child { box-shadow: inset 3px 0 0 #7fd39a; }
 .picker select { background: #1d1f27; color: #e6e7ee; border: 1px solid #343744; border-radius: 4px; padding: 2px 4px; max-width: 260px; }
 .meter { display: block; width: 90px; height: 6px; background: #242631; border-radius: 3px; overflow: hidden; }
 .meter > span { display: block; height: 100%; background: #6fb5ff; }
+.pill { font-size: 11px; color: #c7c8d1; }
 .pill.good { color: #7fd39a; }
+.pill.warn { color: #e7b75a; }
+.pill.bad { color: #e7766a; }
+small.warn { color: #e7b75a; }
+tr.current td { background: rgba(127, 211, 154, 0.08); }
 .compare { margin: 2px 8px 6px; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
 .plans h3 { margin: 8px 8px 4px; font-size: 12px; }
 .plans table { margin-bottom: 4px; }

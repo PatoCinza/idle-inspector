@@ -46,23 +46,74 @@ export const evalLiteral = (literal) =>
 
 const literalAt = (src, anchor, open) => evalLiteral(enclosingLiteral(src, anchor, open));
 
+export const expressionEnd = (src, start) => {
+  let depth = 0;
+  for (let i = start; i < src.length; i++) {
+    const ch = src[i];
+    if (QUOTES.has(ch)) { i = skipString(src, i); continue; }
+    if (ch === '{' || ch === '[' || ch === '(') depth++;
+    else if (ch === '}' || ch === ']' || ch === ')') {
+      if (depth === 0) return i;
+      depth--;
+    } else if (depth === 0 && (ch === ',' || ch === ';')) return i;
+  }
+  return src.length;
+};
+
+const escapeName = (name) => name.replace(/\$/g, '\\$');
+
+const functionSource = (src, at) => {
+  const body = balancedEnd(src, src.indexOf('(', at)) + 1;
+  return src.slice(at, balancedEnd(src, body) + 1);
+};
+
+export const definitionOf = (src, name) => {
+  const fn = src.indexOf(`function ${name}(`);
+  if (fn >= 0) return functionSource(src, fn);
+  const match = new RegExp(`[,;{}\\s](?:const |let |var )?${escapeName(name)}=(?!=)`).exec(src);
+  if (!match) return null;
+  const start = match.index + match[0].length;
+  return src.slice(start, expressionEnd(src, start));
+};
+
+export const resolver = (src) => {
+  const cache = new Map();
+  const scope = new Proxy({}, {
+    has: (_, key) => typeof key === 'string',
+    get: (_, key) => {
+      if (typeof key !== 'string') return undefined;
+      if (key in globalThis) return globalThis[key];
+      if (!cache.has(key)) {
+        cache.set(key, null);
+        cache.set(key, evaluate(definitionOf(src, key)));
+      }
+      return cache.get(key);
+    },
+  });
+  const evaluate = (code) => {
+    try {
+      return code ? new Function('scope', `with (scope) { return (${code}); }`)(scope) : null;
+    } catch {
+      return null;
+    }
+  };
+  return evaluate;
+};
+
 const numberAfter = (src, pattern) => {
   const match = src.match(pattern);
   return match ? Number(match[1]) : null;
 };
 
 const ANCHORS = {
-  monsters: ['troll:{name:"Troll"', '{'],
-  overrides: ['"rotten golem":{hp:', '{'],
   hunts: ['{id:"rottengolem-cave"', '['],
   charms: ['key:"gut"', '['],
-  prices: ['"sacred tree amulet":3e3', '{'],
   values: ['"crystal coin":{value:1e4', '{'],
   catalog: ['"ruthless axe":{id:6553', '{'],
-  specialGroups: ['"mycobiontic_beetle","bloated_man_maggot"', '['],
+  specialGroups: ['"mycobiontic_beetle","bloated_man_maggot","bloodjaw"', '['],
   specialAlias: ['mycobiontic_beetle:"bloatedmanmaggot"', '{'],
   specialLoot: ['bloatedmanmaggot:4.65', '{'],
-  radiantGroups: ['"radiant_acolyte","radiant_paragon"', '['],
+  radiantGroups: ['"radiant_zealot","devoted_radiant_acolyte"', '['],
   radiantLoot: ['skyhold:6.46', '{'],
   codexHunts: ['"rottengolem-cave":[{item:', '{'],
   codexSteps: ['{suffix:"I",qty:1}', '['],
@@ -73,15 +124,42 @@ const ANCHORS = {
   spells: ['words:"exevo mort ora"', '['],
 };
 
-const pickMonster = ([key, m], overrides) => {
-  const o = overrides[m.name.toLowerCase()] ?? {};
+const BASE_MONSTERS = /([\w$]+)=\{troll:\{name:"Troll"/;
+
+const finalMonstersName = (src, base) =>
+  src.match(new RegExp(`([\\w$]+)=Object\\.fromEntries\\(Object\\.entries\\(${escapeName(base)}\\)\\.map\\(`))?.[1];
+
+export const monsterTables = (src) => {
+  const base = src.match(BASE_MONSTERS)?.[1];
+  const final = base && finalMonstersName(src, base);
+  const resolve = resolver(src);
+  const tables = { base: base && resolve(base), final: final && resolve(final) };
+  if (!tables.base || !tables.final) throw new Error('tabela de monstros não encontrada no bundle');
+  return tables;
+};
+
+const pickAbility = ({ element, min, max, chance, interval, radius, length, target }) => ({
+  element,
+  min,
+  max,
+  chance,
+  ...(interval != null ? { interval } : {}),
+  ...(radius != null ? { radius } : {}),
+  ...(length != null ? { length } : {}),
+  ...(target != null ? { target: Boolean(target) } : {}),
+});
+
+const pickMonster = (final) => ([key, base]) => {
+  const m = final[key] ?? base;
   return [key, {
     name: m.name,
-    hp: o.hp ?? m.hp,
+    hp: m.hp,
     exp: m.exp,
-    armor: o.armor ?? m.armor ?? 0,
-    resist: o.resist ?? m.resist ?? {},
-    loot: m.loot ?? [],
+    armor: m.armor ?? 0,
+    resist: m.resist ?? {},
+    dmg: m.dmg ?? [0, 0],
+    abilities: (m.abilities ?? []).map(pickAbility),
+    loot: base.loot ?? [],
   }];
 };
 
@@ -135,9 +213,21 @@ const codexItemNames = (bosses, gear) => [
 
 const huntMonsterKeys = (hunts) => new Set(hunts.flatMap((h) => [...h.monsters, h.bossKey].filter(Boolean)));
 
-const mergePrices = (prices, values, names) => Object.fromEntries(
+const VALUE_CHAIN = /value:[\w$]+\?\.value\|\|((?:[\w$]+\[[\w$]+\]\|\|)+)0/;
+
+export const priceTables = (src) => {
+  const chain = src.match(VALUE_CHAIN)?.[1];
+  const resolve = resolver(src);
+  const tables = chain ? [...chain.matchAll(/([\w$]+)\[/g)].map(([, name]) => resolve(name)) : [];
+  if (!tables.length || tables.some((table) => !table)) throw new Error('tabelas de preço não encontradas no bundle');
+  return tables;
+};
+
+export const itemValue = (values, tables) => (name) => values[name]?.value || tables.map((table) => table[name]).find(Boolean) || null;
+
+const mergePrices = (valueOf, names) => Object.fromEntries(
   [...names]
-    .map((name) => [name, values[name]?.value ?? prices[name]])
+    .map((name) => [name, valueOf(name)])
     .filter(([, price]) => price != null),
 );
 
@@ -150,14 +240,14 @@ const normalizeLoot = (byId) => (entry) => ({
 export const extractDataset = (src, { version = null } = {}) => {
   const read = (name) => literalAt(src, ...ANCHORS[name]);
   const catalog = catalogIndex(read('catalog'));
-  const overrides = read('overrides');
-  const hunts = read('hunts').map(({ id, name, minLevel, monsters, maxAlive, spawnMs, bossKey, avail }) =>
-    ({ id, name, minLevel, monsters, maxAlive, spawnMs, bossKey, avail }));
+  const tables = monsterTables(src);
+  const hunts = read('hunts').map(({ id, name, minLevel, monsters, weights, maxAlive, spawnMs, bossKey, avail }) =>
+    ({ id, name, minLevel, monsters, ...(weights ? { weights } : {}), maxAlive, spawnMs, bossKey, avail }));
   const wanted = huntMonsterKeys(hunts);
   const monsters = Object.fromEntries(
-    Object.entries(read('monsters'))
+    Object.entries(tables.base)
       .filter(([key]) => wanted.has(key))
-      .map((entry) => pickMonster(entry, overrides))
+      .map(pickMonster(tables.final))
       .map(([key, m]) => [key, { ...m, loot: m.loot.map(normalizeLoot(catalog.byId)) }]),
   );
   const lootNames = new Set(Object.values(monsters).flatMap((m) => m.loot.map((l) => l.name)));
@@ -179,7 +269,7 @@ export const extractDataset = (src, { version = null } = {}) => {
     monsters,
     hunts,
     charms,
-    prices: mergePrices(read('prices'), read('values'), lootNames),
+    prices: mergePrices(itemValue(read('values'), priceTables(src)), lootNames),
     equipment: catalog.equipment.filter((name) => lootNames.has(name)),
     itemIds: Object.fromEntries([...itemNames].map((name) => [name, catalog.idOf(name)]).filter(([, id]) => id != null)),
     codexHunts,

@@ -4,6 +4,7 @@ import { withAvatar } from './avatar.js';
 import { withCombat, dealtPerHour, takenPerHour } from './combat.js';
 import { findHunt, rates, perHour, lootPcts, MIN_MINUTES } from './drops.js';
 import { scavengeGoldPerHour, huntLoot, totals, creatures } from './model.js';
+import { BOSS_EXP_MULT } from './run.js';
 import { defenseOf, supplyPerDamage, measuredDefense, recoverySpent, defensiveEffect, DEFENSIVE_MAJORS } from './defense.js';
 
 const charmName = (dataset, key) => dataset.charms.find((charm) => charm.key === key)?.name ?? key;
@@ -43,7 +44,7 @@ const requirements = ({ hunt, window, party, charmSlots }) => {
 const sum = (values) => values.reduce((a, b) => a + b, 0);
 
 const estimatedXpPerHour = ({ dataset, hunt, killsByMonster, roomsPerHour }) => sum(creatures(hunt).map((key) => (dataset.monsters[key]?.exp ?? 0) * (killsByMonster[key] ?? 0)))
-  + (hunt.bossKey ? (dataset.monsters[hunt.bossKey]?.exp ?? 0) * roomsPerHour * ((dataset.bossWave?.expMult ?? 1) - 1) : 0);
+  + (hunt.bossKey ? (dataset.monsters[hunt.bossKey]?.exp ?? 0) * roomsPerHour * (BOSS_EXP_MULT - 1) : 0);
 
 const economyOf = ({ common, assigned, window, xp, defense }) => ({
   lootPerHour: totals(huntLoot({ ...common, charms: assigned })).total,

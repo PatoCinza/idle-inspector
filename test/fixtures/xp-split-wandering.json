@@ -1,0 +1,13 @@
+{
+  "note": "Sessão real na Wandering Pillar em 16/10/2026, party de 3 (líder Master Sorcerer), VIP ativo, sem boost de XP. Cada kill manda um fx xp por personagem, na ordem MS, EK, ED. XP% do painel de bônus: MS 46, EK 32, ED 48. Na wave do boss o Helper troca o butterfly ring do EK (5%) e do ED (4%).",
+  "xpPct": { "sorcerer": 46, "knight": 32, "druid": 48 },
+  "bossSwap": { "knight": 5, "druid": 4 },
+  "kills": [
+    { "monster": "darklight_emitter", "xp": [30371, 20594, 23090] },
+    { "monster": "darklight_construct", "xp": [47424, 32157, 36055] },
+    { "monster": "converter", "xp": [46080, 31246, 35033] },
+    { "monster": "wandering_pillar", "xp": [49898, 33835, 37936] }
+  ],
+  "boss": { "monster": "wandering_pillar", "xp": [249488, 162765, 184552] },
+  "room": { "credited": [2569592, 1703523, 1950246], "stack": 6223361 }
+}

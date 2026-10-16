@@ -60,7 +60,20 @@ O seletor "Planejar" (abas Drops, Bestiário, Codex e Amostra) escolhe qualquer 
 
 A aba Amostra guarda, no navegador, cada kill isolada (uma atualização do servidor com uma kill só): quantas kills de cada criatura, quantas vezes cada item caiu e em que quantidade. Ela compara a chance medida com a prevista (intervalo de 95%) e marca quantidade acima do máximo ou item fora da tabela. Com 30 drops ou mais de um item, a quantidade medida substitui a média da tabela nas abas Drops e Charms. A amostra soma todas as sessões e não zera com o Hunt Analyzer.
 
-O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida), cada cast de magia de ataque e cada ataque básico (`fx`), as ondas e salas (`notify`) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico, bônus de loot, magic level, Dano de magia e a proficiência da arma de cada membro e as cartas da janela de Charms.
+O que vem direto do tráfego do jogo, sem ler a tela: kills, salas e loot (patches de estado), charms equipados (`charms`), Charm Analyzer (`charmstats`), tempo em avatar (`procstats`, linha Transcendence) cada golpe da party (`combatlog`: dano, crítico e criatura atingida), cada cast de magia de ataque e cada ataque básico (`fx`), as ondas e salas (`notify`) e o progresso do Codex de hunts, bosses e equipamento (inventário). O botão "Ler party e charms" ainda lê da tela o level, HP, mana, crítico, bônus de loot, XP%, proteção por elemento, magic level, Dano de magia e a proficiência da arma de cada membro e as cartas da janela de Charms.
+
+### Aba Hunts
+
+Ordena todas as hunts liberadas por XP/h ou por lucro/h (loot − supplies), como o objetivo do plano de charms, e mostra para cada uma o ataque e a defesa que convêm.
+
+- **Ritmo (salas/h):** ao vivo na hunt atual, a última medição nas hunts já caçadas e, nas outras, estimado pela hunt de referência. A referência é a última medição ao vivo com 2 min e 2 salas ou mais; ela guarda o dano da party por segundo (sem resistência, pela mistura de elementos medida no `combatlog`) e o tempo fixo por sala (o tempo da sala menos o tempo de dano). Numa hunt estimada, a sala leva esse tempo fixo (proporcional ao `spawnMs`) mais o HP da sala depois das resistências ÷ o dano da party.
+- **XP:** exp base das kills (o boss paga 5× a exp da criatura dele) × o fator de XP da party. O fator é medido (XP creditada pelo jogo ÷ exp base das kills); sem medição, vem do XP% lido de cada membro: o líder recebe 40% da exp e cada outro 30%, cada parte × 0,99 × (1 + XP% do personagem). As fontes de XP de um personagem somam; o total multiplica só a parte dele.
+- **Lucro:** loot pelo modelo de drops com o ritmo da hunt, o bônus de loot da party e os charms equipados, menos as supplies/h medidas na hunt (ou as da referência).
+- **Ataque:** os dois elementos de menor resistência média na sala (pesada pelo HP de cada criatura) e, no tooltip, as três melhores magias em área de cada personagem pelo dano médio no level e magic level dele depois da resistência. Magia de especialização (Death Nova, Devastating Strike…) só entra se o personagem já foi visto usando. O tooltip também diz quanto a mistura de elementos medida rende em relação a pôr todo o dano no melhor elemento.
+- **Defesa:** dano dos monstros por elemento (corpo a corpo e magias, `maxAlive` atacando juntos) depois da proteção média da party, comparado com o mesmo cálculo na hunt de referência, onde o dano recebido é medido. Acima de 1,25× é "atenção", acima de 2× é "arriscada" e vai para o fim da lista. O tooltip mostra o recebido estimado, o elemento que mais pesa contra a sua proteção e a criatura que mais bate (candidata a Parry ou Dodge).
+- O `minLevel` das hunts é só o level sugerido pelo jogo (não bloqueia a entrada): aparece em amarelo quando a party está abaixo.
+
+Medido em 16/10 na Wandering Pillar (party de 3, 2 salas, ~300 kills): cada kill manda um `fx` `xp` por personagem; as partes ficaram em 0,396 / 0,297 / 0,297 da exp da criatura depois de tirar o XP% de cada um (46, 32 e 48%), em todas as criaturas, e o boss pagou 2× isso. O XP Stack da sala é a soma do que cada personagem recebeu (`test/fixtures/xp-split-wandering.json`).
 
 ### Aba Rotação
 
@@ -146,16 +159,28 @@ npm install
 npm test          # modelo, calibração e estatística do A/B
 npm run extract   # baixa o cliente do jogo e regenera data/game.json e data/spells.json
 npm run images    # baixa os ícones dos itens
+npm run runs      # xp, HP e dano de uma sala completa em cada hunt (--csv para planilha)
 npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.min.js
 ```
 
-`npm run extract` precisa de acesso a baiakidle.com. As âncoras usadas para achar cada tabela no bundle estão em `src/extract.js` (`ANCHORS`). Se um deploy do jogo quebrar a extração, é por ali que se começa.
+`npm run extract` precisa de acesso a baiakidle.com e acha sozinho o arquivo do bundle que tem os dados (hoje `game-*.js`, carregado pelo `main-*.js`). As âncoras usadas para achar cada tabela estão em `src/extract.js` (`ANCHORS`). Se um deploy do jogo quebrar a extração, é por ali que se começa.
+
+Os monstros vêm da tabela final que o próprio cliente monta (base, ajustes por nome, ajustes por chave e multiplicadores de exp das hunts especiais), avaliada no Node a partir das definições do bundle. Por isso o HP, a exp, o dano corpo a corpo e as magias de cada criatura batem com a Cyclopedia; o loot continua sendo o da tabela base, e os multiplicadores de loot das hunts especiais ficam em `lootMultipliers`.
+
+O preço de cada item segue a mesma regra do Loot Analyser do jogo: o `value` do item e, se for zero ou faltar, a primeira tabela de preços que tiver o item, na ordem em que o cliente consulta (`value || tabela1 || tabela2 || …`). Os nomes dessas tabelas são lidos dessa expressão no bundle. Conferido em 16/10: as 1.230 kills da Wandering Pillar dão exatamente o Gold value do Loot Analyser.
+
+## Sala completa
+
+`npm run runs` mostra, por hunt, o que uma sala dá matando tudo: 9 waves de 4, 4, 5, 5, 6, 6, 7, 7 e 8 criaturas (52, em proporção igual ou pelos `weights` da hunt) e o boss sozinho na wave 10, com 3× o HP e 5× a exp (medido; o cliente ainda diz 2,5×). A composição das waves não está no cliente; vem das salas medidas (167 salas na Dark Thais, todas iguais, e as 53 kills por sala da Rotten Golem e da Infernal Demon).
+
+- **xp:** exp base da Cyclopedia, sem a divisão da party e sem o XP% de cada personagem (ver Aba Hunts).
+- **dano:** dano bruto por segundo de cada criatura, antes de armadura e resistências: o corpo a corpo a cada 2 s mais cada magia pela chance a cada intervalo (cura fica de fora). `packDps` é o dano com `maxAlive` criaturas atacando juntas; magia em área conta uma vez por alvo atingido.
 
 ## Estrutura
 
 | Arquivo | Papel |
 |---|---|
-| `src/extract.js` | Acha e avalia os literais do bundle (monstros, hunts, charms, preços, multiplicadores especiais) |
+| `src/extract.js` | Acha e avalia os literais do bundle (monstros, hunts, charms, preços, multiplicadores especiais) e resolve a tabela final de monstros do cliente |
 | `src/model.js` | Modelo de loot em funções puras: drops/h, valor por monstro, planos de Gut/Scavenge, bestiário |
 | `src/charms.js` | Plano de charms: majors de dano por criatura, Gut/Scavenge pelo loot, Fatal Hold na criatura que sobra |
 | `src/avatar.js` | Tempo em avatar de cada membro a partir do `procstats` |
@@ -174,6 +199,8 @@ npm run build     # gera dist/index.html, dist/artifact.html e dist/collector.mi
 | `src/experiment.js` | Estatística do A/B: tempos de sala, waves, primeiro golpe, intervalos de Welch |
 | `scripts/compare.js` | CLI do A/B |
 | `scripts/fetch-images.js` | Baixa os ícones dos itens |
+| `src/run.js`, `scripts/hunt-runs.js` | Sala completa: xp, HP total e dano por segundo das criaturas e do boss |
+| `src/recommend.js`, `src/overlay/hunts-view.js` | Aba Hunts: referência medida, ritmo estimado, XP/h e lucro/h por hunt, ataque e defesa |
 | `site/` | Template, estilos e app do site |
 | `test/` | Testes com `node:test`, incluindo a calibração com as sessões do Rotten Golem e do Infernal Demon |
 
@@ -224,6 +251,7 @@ Na calibração, as moedas bateram em 1,00×, os itens unitários ficaram dentro
 - **Hunts limitadas pelo spawn** não ganham kills/h com mais dano. O plano supõe hunt limitada por dano, o que favorece os majors ofensivos.
 - **Supplies por dano recebido** atribuem todo o gasto com poções ao dano recebido, inclusive a mana gasta em ataque. É um teto para o valor do Dodge e do Parry.
 - **Rotação:** o `combatlog` não identifica a magia; a atribuição usa o instante do cast. Se a wand e uma magia de morte do Sorcerer saem no mesmo instante, o golpe da wand entra na magia. Proc de charm do mesmo elemento da magia, no instante do cast, entra na magia. A primeira sala depois de abrir o jogo não entra na tabela de salas, porque o começo dela não foi visto. Perks de proficiência por magia ou elemento aparecem na aba, mas ainda não entram no esperado.
+- **Hunts estimadas** supõem o mesmo dano e o mesmo tempo fixo por sala da referência. Não entram armadura dos monstros, quantos alvos cada magia em área pega nem hunts limitadas pelo spawn; quanto mais diferente da referência, menos confiável. A defesa compara pressão de dano, não diz se a party sobrevive; e a proteção é a média da party, sem pesar quem apanha mais.
 - **Mortes** ainda não entram: nenhuma morte foi registrada nas sessões medidas, e o formato da mensagem ainda não foi visto.
 
 ## Próximos passos (v2)
