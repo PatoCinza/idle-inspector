@@ -4,6 +4,7 @@ import { MIN_MINUTES, rates, perHour, lootPcts } from './drops.js';
 import { isEmptyCombat } from './combat.js';
 import { charmsFromSlots } from './payload.js';
 import { spellAverage } from './spells.js';
+import { metaRotation, metaSpells, isMage } from './mage-meta.js';
 
 export const ELEMENTS = ['physical', 'energy', 'earth', 'fire', 'ice', 'holy', 'death'];
 export const PARTY_XP_SHARES = { 1: [1], 2: [4 / 7, 3 / 7], 3: [0.4, 0.3, 0.3] };
@@ -99,7 +100,7 @@ export const huntRates = ({ dataset, hunt, live, saved, reference }) => {
   return null;
 };
 
-const weightedResist = (dataset, hunt) => {
+export const weightedResist = (dataset, hunt) => {
   const room = roomOf(dataset, hunt);
   const total = sum(room.map((c) => c.kills * c.hp)) || 1;
   return Object.fromEntries(ELEMENTS.map((element) => [element,
@@ -128,7 +129,22 @@ const scoredSpell = (member, resist) => (spell) => ({
 
 const byScore = (a, b) => b.score - a.score || (b.spell.level ?? 0) - (a.spell.level ?? 0);
 
+const spellEntry = (resist) => ({ spell, role }) => ({ name: spell.name, element: spell.element, resist: resist[spell.element], ...(role ? { role } : {}) });
+
+const mageOffense = (dataset, resist, cast) => (member) => {
+  const rotation = metaRotation({ dataset, member, resist, cast: cast[member.vocation] });
+  const choice = rotation.rune ?? rotation.fork ?? rotation.ultimates[0] ?? null;
+  return {
+    name: member.name ?? member.vocation,
+    vocation: member.vocation,
+    element: choice?.element ?? null,
+    resist: choice ? resist[choice.element] : null,
+    spells: metaSpells(rotation).map(spellEntry(resist)),
+  };
+};
+
 const memberOffense = (dataset, resist, cast) => (member) => {
+  if (isMage(member.vocation)) return mageOffense(dataset, resist, cast)(member);
   const ranked = waveSpells(usableSpells(dataset, member, cast)).map(scoredSpell(member, resist)).sort(byScore);
   const element = ranked[0]?.spell.element ?? null;
   return {
@@ -136,7 +152,7 @@ const memberOffense = (dataset, resist, cast) => (member) => {
     vocation: member.vocation,
     element,
     resist: element ? resist[element] : null,
-    spells: ranked.slice(0, 3).map(({ spell }) => ({ name: spell.name, element: spell.element, resist: resist[spell.element] })),
+    spells: ranked.slice(0, 3).map(spellEntry(resist)),
   };
 };
 
@@ -168,7 +184,10 @@ const huntPressure = (dataset, hunt) => {
   return { byElement, creaturesDps };
 };
 
-const mitigated = (byElement, protection) => sum(Object.entries(byElement).map(([element, dps]) => dps * (1 - (protection[element] ?? 0) / 100)));
+const mitigatedByElement = (byElement, protection) => Object.fromEntries(Object.entries(byElement)
+  .map(([element, dps]) => [element, dps * (1 - (protection[element] ?? 0) / 100)]));
+
+const mitigated = (byElement, protection) => sum(Object.values(mitigatedByElement(byElement, protection)));
 
 const riskOf = (ratio) => {
   if (ratio === null) return null;
@@ -191,6 +210,7 @@ export const defenseOf = ({ dataset, hunt, protection, reference }) => {
   return {
     raw: sum(Object.values(pressure.byElement)),
     incoming,
+    byElement: mitigatedByElement(pressure.byElement, protection),
     takenPerSecond: scale === null ? null : incoming * scale,
     ratio,
     risk: riskOf(ratio),
@@ -198,6 +218,42 @@ export const defenseOf = ({ dataset, hunt, protection, reference }) => {
     hitter: hitter ? { key: hitter.key, name: dataset.monsters[hitter.key]?.name ?? hitter.key } : null,
   };
 };
+
+export const MIN_PROTECTION_SHARE = 0.1;
+export const WEAPON_IMBUE_VOCATIONS = new Set(['knight', 'paladin', 'monk']);
+export const MIN_DAMAGE_GAIN = 0.02;
+
+const strongest = (imbuement) => imbuement.values.at(-1) / 100;
+
+const protectionImbuements = (imbuements, defense) => imbuements
+  .filter((imbuement) => imbuement.kind === 'protect')
+  .map((imbuement) => {
+    const share = defense.incoming > 0 ? (defense.byElement[imbuement.element] ?? 0) / defense.incoming : 0;
+    return { key: imbuement.key, name: imbuement.name, element: imbuement.element, share, reduction: share * strongest(imbuement) };
+  })
+  .filter(({ share }) => share >= MIN_PROTECTION_SHARE)
+  .sort((a, b) => b.reduction - a.reduction);
+
+const damageImbuement = (imbuements, offense, members) => {
+  const vocations = members.map((member) => member.vocation).filter((vocation) => WEAPON_IMBUE_VOCATIONS.has(vocation));
+  const physical = 1 - offense.resist.physical / 100;
+  const [best] = imbuements
+    .filter((imbuement) => imbuement.kind === 'elemdmg')
+    .map((imbuement) => ({
+      key: imbuement.key,
+      name: imbuement.name,
+      element: imbuement.element,
+      resist: offense.resist[imbuement.element],
+      gain: physical > 0 ? strongest(imbuement) * ((1 - offense.resist[imbuement.element] / 100) - physical) / physical : 0,
+    }))
+    .sort((a, b) => b.gain - a.gain);
+  return vocations.length && best?.gain >= MIN_DAMAGE_GAIN ? { ...best, vocations } : null;
+};
+
+export const imbuementsOf = ({ dataset, offense, defense, members }) => ({
+  protection: protectionImbuements(dataset.imbuements ?? [], defense),
+  damage: damageImbuement(dataset.imbuements ?? [], offense, members),
+});
 
 const membersOf = (party, combat) => (party?.length
   ? party
@@ -243,6 +299,8 @@ export const recommendHunts = ({ dataset, live = null, huntRates: saved = {}, re
         ? totals(huntLoot({ dataset, hunt, killsByMonster: rates.killsByMonster, roomsPerHour: rates.roomsPerHour, lootPcts: lootPcts(party), charms: assigned, quantities, skipped })).total
         : null;
       const suppliesPerHour = rates ? rates.suppliesPerHour ?? reference?.suppliesPerHour ?? 0 : null;
+      const offense = offenseOf({ dataset, hunt, members, mix: reference?.mix ?? null, cast });
+      const defense = defenseOf({ dataset, hunt, protection, reference });
       const row = {
         hunt,
         rates,
@@ -250,8 +308,9 @@ export const recommendHunts = ({ dataset, live = null, huntRates: saved = {}, re
         lootPerHour,
         suppliesPerHour,
         profitPerHour: rates ? lootPerHour - suppliesPerHour : null,
-        offense: offenseOf({ dataset, hunt, members, mix: reference?.mix ?? null, cast }),
-        defense: defenseOf({ dataset, hunt, protection, reference }),
+        offense,
+        defense,
+        imbuements: imbuementsOf({ dataset, offense, defense, members }),
         belowLevel: (partyLevel(party) ?? Infinity) < (hunt.minLevel ?? 0),
         current: live?.huntId === hunt.id,
         reference: reference?.huntId === hunt.id,

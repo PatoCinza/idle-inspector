@@ -15,7 +15,12 @@ const ENTRIES = [
   { source: 'extension/options/options.js', output: 'options.js' },
 ];
 
-const STATIC_FILES = [{ source: 'extension/options/options.html', output: 'options.html' }];
+const ICON_SIZES = [16, 32, 48, 128];
+
+const STATIC_FILES = [
+  { source: 'extension/options/options.html', output: 'options.html' },
+  ...ICON_SIZES.map((size) => ({ source: `extension/icons/icon-${size}.png`, output: `icons/icon-${size}.png` })),
+];
 
 const withDynamicUrl = (resource) => ({ ...resource, use_dynamic_url: true });
 
@@ -63,6 +68,7 @@ const buildTarget = async (outDir, target, icons) => {
   const base = JSON.parse(await readFile(path('extension/manifest.json'), 'utf8'));
   await rm(dir, { recursive: true, force: true });
   await mkdir(`${dir}/img/items`, { recursive: true });
+  await mkdir(`${dir}/icons`, { recursive: true });
   await Promise.all([
     ...ENTRIES.map(({ source, output }) => bundle(source, `${dir}/${output}`)),
     writeFile(`${dir}/manifest.json`, `${JSON.stringify(TARGETS[target](base), null, 2)}\n`),

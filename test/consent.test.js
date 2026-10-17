@@ -9,11 +9,10 @@ const fakeApi = ({ permissions = { permissions: [], origins: [] }, saved = {} } 
 
 const firefox = (granted) => ({ permissions: [], origins: [], data_collection: granted });
 
-test('a escolha salva vale; sem escolha, liga depois que o aviso apareceu', () => {
-  assert.equal(storedConsent({ choice: undefined, noticeShown: undefined }), false);
-  assert.equal(storedConsent({ choice: undefined, noticeShown: true }), true);
-  assert.equal(storedConsent({ choice: { granted: false }, noticeShown: true }), false);
-  assert.equal(storedConsent({ choice: { granted: true }, noticeShown: false }), true);
+test('só liga com a escolha salva; ver o aviso não liga nada', () => {
+  assert.equal(storedConsent({ choice: undefined }), false);
+  assert.equal(storedConsent({ choice: { granted: false } }), false);
+  assert.equal(storedConsent({ choice: { granted: true } }), true);
 });
 
 test('a coleta do Firefox 140+ é detectada pelo getAll; nos outros navegadores fica null', async () => {
@@ -23,18 +22,22 @@ test('a coleta do Firefox 140+ é detectada pelo getAll; nos outros navegadores 
   assert.equal(await firefoxConsent(fakeApi({ permissions: firefox([]) })), false);
 });
 
-test('Chrome e Firefox antigo: aviso uma vez, depois ligado até a pessoa desligar', async () => {
+test('Chrome e Firefox antigo: desligado, aviso uma vez pedindo para ligar', async () => {
   const fresh = await consentDetails(fakeApi());
   assert.deepEqual([fresh.granted, needsNotice(fresh)], [false, true]);
   const afterNotice = await consentDetails(fakeApi({ saved: { [KEYS.asked]: true } }));
-  assert.deepEqual([afterNotice.granted, needsNotice(afterNotice)], [true, false]);
+  assert.deepEqual([afterNotice.granted, needsNotice(afterNotice)], [false, false]);
+  const accepted = await consentDetails(fakeApi({ saved: { [KEYS.asked]: true, [KEYS.consent]: { granted: true } } }));
+  assert.deepEqual([accepted.granted, needsNotice(accepted)], [true, false]);
   const declined = await consentDetails(fakeApi({ saved: { [KEYS.asked]: true, [KEYS.consent]: { granted: false } } }));
   assert.deepEqual([declined.granted, needsNotice(declined)], [false, false]);
 });
 
-test('Firefox 140+: vale o que ficou marcado na instalação, sem aviso no overlay', async () => {
-  const kept = await consentDetails(fakeApi({ permissions: firefox(['technicalAndInteraction']), saved: { [KEYS.consent]: { granted: false } } }));
-  assert.deepEqual([kept.granted, needsNotice(kept)], [true, false]);
-  const unchecked = await consentDetails(fakeApi({ permissions: firefox([]) }));
+test('Firefox 140+: precisa da permissão da instalação e do sim no aviso; desmarcada na instalação, nem pergunta', async () => {
+  const checkedOnly = await consentDetails(fakeApi({ permissions: firefox(['technicalAndInteraction']) }));
+  assert.deepEqual([checkedOnly.granted, needsNotice(checkedOnly)], [false, true]);
+  const accepted = await consentDetails(fakeApi({ permissions: firefox(['technicalAndInteraction']), saved: { [KEYS.asked]: true, [KEYS.consent]: { granted: true } } }));
+  assert.deepEqual([accepted.granted, needsNotice(accepted)], [true, false]);
+  const unchecked = await consentDetails(fakeApi({ permissions: firefox([]), saved: { [KEYS.consent]: { granted: true } } }));
   assert.deepEqual([unchecked.granted, needsNotice(unchecked)], [false, false]);
 });

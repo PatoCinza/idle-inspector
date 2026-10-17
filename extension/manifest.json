@@ -1,8 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Baiak Loot Planner",
-  "version": "0.4.0",
-  "description": "Drops, Codex e charms ao vivo no Baiak Idle. Ferramenta de fã, sem vínculo oficial. Dados de uso anônimos, que dá para desligar.",
+  "version": "0.4.1",
+  "description": "Drops, Codex, charms, XP e hunts ao vivo no Baiak Idle. Ferramenta de fã, sem vínculo oficial. Telemetria anônima só se você ligar.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": [
     "storage"
   ],
@@ -30,7 +36,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "img/items/*.png"
+        "img/items/*.png",
+        "icons/icon-32.png"
       ],
       "matches": [
         "https://baiakidle.com/*"
@@ -38,7 +45,12 @@
     }
   ],
   "action": {
-    "default_title": "Baiak Loot Planner"
+    "default_title": "Baiak Loot Planner",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png"
+    }
   },
   "options_ui": {
     "page": "options.html",

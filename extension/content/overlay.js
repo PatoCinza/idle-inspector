@@ -17,6 +17,8 @@ import { renderHunts } from '../../src/overlay/hunts-view.js';
 import { liveWindow } from '../../src/plan.js';
 import { xpAnalysis } from '../../src/xp-tracker.js';
 import { renderXp } from '../../src/overlay/xp-view.js';
+import { idiotCheck } from '../../src/check.js';
+import { renderCheck } from '../../src/overlay/check-view.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
@@ -25,7 +27,7 @@ const ISOLATED_EVENTS = ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointe
 const SHELL = `<style>${STYLES}</style>
 <section class="panel">
   <header class="bar" data-drag>
-    <strong>Baiak Loot Planner</strong>
+    <strong><img class="logo" alt="" width="20" height="20"><span class="title">Baiak Loot Planner</span></strong>
     <div class="actions">
       <button class="ghost" data-action="read-party" title="Lê o bônus de loot da party e os charms equipados">Ler party e charms</button>
       <button class="ghost" data-action="options" title="Dados de uso anônimos: o que é enviado e como desligar">Dados</button>
@@ -47,6 +49,7 @@ const TABS = [
   { id: 'codex', label: 'Codex' },
   { id: 'charms', label: 'Charms' },
   { id: 'rotation', label: 'Rotação' },
+  { id: 'check', label: 'Conferir' },
   { id: 'sample', label: 'Amostra' },
 ];
 
@@ -54,12 +57,12 @@ export const defaultUi = () => ({ x: null, y: null, collapsed: false, sort: DEFA
 
 const PLANNER_TABS = new Set(['drops', 'codex', 'bestiary', 'sample']);
 
-const CONSENT_PROMPT = `<span>Os dados de uso anônimos vêm ligados: a cada 10 minutos, a extensão envia um resumo das suas hunts, sem nomes e sem IP, para calibrar o modelo de loot e de charms. Dá para desligar aqui ou no botão Dados.</span>
+const CONSENT_PROMPT = `<span>Quer ajudar a calibrar o modelo de loot e de charms? Os dados de uso anônimos ficam desligados até você ligar: com eles ligados, a cada 10 minutos a extensão envia um resumo das suas hunts, sem nomes e sem IP. Dá para mudar depois no botão Dados.</span>
   <button class="ghost" data-action="options">Ver o que é enviado</button>
-  <button class="ghost" data-action="consent-off">Desligar</button>
-  <button class="ghost" data-action="consent-keep">Ok</button>`;
+  <button class="ghost" data-action="consent-off">Agora não</button>
+  <button class="ghost" data-action="consent-keep">Ligar</button>`;
 
-export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, actions = {}, consentPrompt = false }) => {
+export const mountOverlay = ({ doc, dataset, iconUrl, logoUrl = null, ui: stored, saveUi, actions = {}, consentPrompt = false }) => {
   let ui = { ...defaultUi(), ...stored };
   let app = null;
   let timer = null;
@@ -72,6 +75,10 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
   ISOLATED_EVENTS.forEach((type) => host.addEventListener(type, (event) => event.stopPropagation()));
 
   const panel = shadow.querySelector('.panel');
+  const logo = shadow.querySelector('.logo');
+  const toggleButton = shadow.querySelector('[data-action="toggle"]');
+  if (logoUrl) logo.src = logoUrl;
+  else logo.remove();
   const body = shadow.querySelector('.body');
   const consent = shadow.querySelector('.consent');
   const track = actions.track ?? (() => {});
@@ -83,6 +90,8 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
 
   const applyUi = () => {
     panel.classList.toggle('collapsed', ui.collapsed);
+    toggleButton.textContent = ui.collapsed ? '▸' : '▾';
+    toggleButton.title = ui.collapsed ? 'Expandir' : 'Recolher';
     if (ui.x === null) {
       Object.assign(panel.style, { left: '', top: '', right: '' });
       return;
@@ -136,6 +145,21 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     </div>`;
   };
 
+  const liveCharms = (plan) => charmTable({
+    dataset,
+    window: plan.live,
+    party: party(),
+    charmSlots: app.charmSlots,
+    charmStats: app.charmStats,
+    procs: app.procs ?? null,
+    combat: app.combat ?? null,
+    bestiary: app.session.last?.bestiary ?? null,
+    quantities: quantities(),
+    skipped: skipped(),
+    xp: app.xp ?? 0,
+    objective: ui.charmObjective,
+  });
+
   const views = {
     drops: (plan) => renderBody({
       table: dropsOf(plan),
@@ -148,20 +172,14 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
         : renderCodexSection(cachedSection(section, plan.hunt), dataset.rarities);
       return renderCodexNav(section) + content;
     },
-    charms: (plan) => renderCharms(charmTable({
+    charms: (plan) => renderCharms(liveCharms(plan), ui.charmObjective),
+    check: (plan) => renderCheck(idiotCheck({
       dataset,
-      window: plan.live,
+      hunt: dataset.hunts.find((hunt) => hunt.id === plan.live.huntId) ?? null,
       party: party(),
-      charmSlots: app.charmSlots,
-      charmStats: app.charmStats,
-      procs: app.procs ?? null,
-      combat: app.combat ?? null,
-      bestiary: app.session.last?.bestiary ?? null,
-      quantities: quantities(),
-      skipped: skipped(),
-      xp: app.xp ?? 0,
-      objective: ui.charmObjective,
-    }), ui.charmObjective),
+      rotation: app.rotation ?? null,
+      charms: liveCharms(plan),
+    })),
     bestiary: (plan) => renderBestiary(bestiaryTable({
       dataset,
       hunt: plan.hunt,
@@ -207,7 +225,7 @@ export const mountOverlay = ({ doc, dataset, iconUrl, ui: stored, saveUi, action
     const plan = planFor({ dataset, app, plannedHunt: ui.plannedHunt });
     renderTabs();
     renderPlanner(plan);
-    panel.classList.toggle('fill', (ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt)) || ui.tab === 'charms' || ui.tab === 'rotation' || ui.tab === 'hunts');
+    panel.classList.toggle('fill', (ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt)) || ui.tab === 'charms' || ui.tab === 'rotation' || ui.tab === 'hunts' || ui.tab === 'check');
     patchHtml(body, (views[ui.tab] ?? views.drops)(plan));
   };
 

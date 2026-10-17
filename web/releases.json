@@ -1,5 +1,29 @@
 [
   {
+    "version": "0.4.1",
+    "date": "2026-10-16",
+    "notes": [
+      "Dados de uso anônimos agora vêm desligados: o painel pergunta na primeira vez e nada é enviado até você ligar.",
+      "Ícone novo da extensão.",
+      "Página de privacidade no site, com o que fica no seu navegador, o que é enviado se você ligar e o que nunca é enviado.",
+      "Aba Hunts com os imbuements de cada hunt: proteção para os elementos que mais pesam no dano que você recebe e dano elemental na arma quando rende mais que o físico.",
+      "Painel minimizado fica só com o ícone, os botões e a seta para abrir."
+    ]
+  },
+  {
+    "version": "0.4.0",
+    "date": "2026-10-16",
+    "notes": [
+      "Nova aba XP: o XP/h real da equipe e de cada personagem, pela XP que o jogo credita ao fim de cada sala, sem a oscilação do Hunt Analyzer. Mostra também o ao vivo (com a XP Stack da sala, se o boss cair), quanto falta e o tempo para o próximo level, atualizado a cada sala.",
+      "Nova aba Hunts: ordena as hunts por XP/h ou por lucro/h, com o ritmo medido nas que você já caçou e estimado nas outras pelo dano da sua party. Para cada uma, os elementos e as magias em área que rendem mais e o dano que os monstros causam comparado com o que vocês já aguentam.",
+      "XP conferida no jogo: o líder da party recebe 40% da exp e cada outro 30%, cada um com o próprio XP%, e o boss da sala paga 5× a exp da criatura.",
+      "HP, exp e dano dos monstros agora vêm da tabela final do jogo, com os ajustes das hunts especiais (exp até 3,9× maior nas hunts de nível alto).",
+      "Preço de 198 itens que apareciam como 0 (darklight core, basalt core, ultimate mana potion e outros): o loot por hora bate com o Gold value do Loot Analyser.",
+      "Dados do jogo atualizados: novas hunts e entradas do Codex, bosses, sets de equipamento e ícones.",
+      "Ler party agora traz o XP% e a proteção por elemento de cada personagem."
+    ]
+  },
+  {
     "version": "0.3.0",
     "date": "2026-10-04",
     "notes": [

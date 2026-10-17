@@ -104,13 +104,14 @@ test('hunt mais resistente ao dano da party rende menos salas por hora na estima
   assert.ok(rooms < 36);
 });
 
-test('ataque escolhe o elemento de menor resistência média e as magias em área de cada personagem', () => {
+test('ataque escolhe o elemento de menor resistência média e a rotação de cada personagem', () => {
   const offense = offenseOf({ dataset, hunt, members: party, mix: { ice: 1 } });
   const lowest = Math.min(...Object.values(offense.resist));
   assert.equal(offense.best[0].resist, lowest);
   const druid = offense.members.find((m) => m.vocation === 'druid');
-  assert.ok(druid.spells.length > 0 && druid.spells.length <= 3);
-  assert.ok(druid.spells.every((spell) => dataset.spells.find((s) => s.name === spell.name).type === 'area'));
+  assert.deepEqual(druid.spells.map((spell) => spell.role), ['ultimate', 'ultimate', 'fork', 'rune']);
+  const knight = offense.members.find((m) => m.vocation === 'knight');
+  assert.ok(knight.spells.every((spell) => dataset.spells.find((s) => s.name === spell.name).type === 'area'));
   assert.ok(offense.efficiency > 0 && offense.efficiency <= 1);
 });
 
@@ -192,4 +193,28 @@ test('aba Hunts mostra o objetivo, a referência, as fontes e a defesa', () => {
   const empty = renderHunts(recommendHunts({ dataset, objective: 'xp' }));
   assert.match(empty, /Sem hunt de referência/);
   assert.match(empty, /Party não lida/);
+});
+
+test('imbuements: proteção para os elementos que mais pesam e dano elemental só para quem usa arma e quando rende', async () => {
+  const { imbuementsOf, MIN_PROTECTION_SHARE, MIN_DAMAGE_GAIN } = await import('../src/recommend.js');
+  const offense = { resist: { physical: 20, fire: -10, ice: 30, energy: 0, earth: 0, holy: 0, death: 0 } };
+  const defense = { incoming: 100, byElement: { physical: 50, fire: 30, death: 15, ice: 5 } };
+  const knight = [{ vocation: 'knight' }, { vocation: 'druid' }];
+  const result = imbuementsOf({ dataset, offense, defense, members: knight });
+  assert.deepEqual(result.protection.map((p) => p.key), ['dragonhide', 'lichshroud']);
+  assert.ok(result.protection.every((p) => p.share >= MIN_PROTECTION_SHARE));
+  assert.equal(Math.round(result.protection[0].reduction * 1000), Math.round(0.3 * 0.15 * 1000));
+  assert.equal(result.damage.key, 'scorch');
+  assert.ok(result.damage.gain >= MIN_DAMAGE_GAIN);
+  assert.deepEqual(result.damage.vocations, ['knight']);
+  assert.equal(imbuementsOf({ dataset, offense, defense, members: [{ vocation: 'druid' }] }).damage, null);
+  const physicalBest = { resist: { ...offense.resist, physical: -30 } };
+  assert.equal(imbuementsOf({ dataset, offense: physicalBest, defense, members: knight }).damage, null);
+});
+
+test('aba Hunts mostra a coluna de imbuements', () => {
+  const reference = referenceOf({ dataset, window, combat, xp: 50e6, t: 1 });
+  const html = renderHunts(recommendHunts({ dataset, live: window, reference, party, combat, objective: 'xp', liveXp: 50e6 }));
+  assert.match(html, /<th>Imbuements<\/th>/);
+  assert.match(html, /Dragon Hide|Lich Shroud|Snake Skin|Quara Scale|Cloud Fabric|Demon Presence/);
 });

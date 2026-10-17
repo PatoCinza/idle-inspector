@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { GECKO_ID } from '../src/site.js';
 import { DOWNLOADS_DIR, newestFirst, fileNames, updateManifest, redirects, headers } from '../src/web/releases.js';
 import { renderLanding } from '../src/web/landing.js';
+import { renderPrivacy } from '../src/web/privacy.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const path = (relative) => `${root}${relative}`;
@@ -58,8 +59,10 @@ export const buildWeb = async () => {
   await rm(OUT_DIR, { recursive: true, force: true });
   await mkdir(`${OUT_DIR}/${DOWNLOADS_DIR}`, { recursive: true });
   await mkdir(`${OUT_DIR}/planner`, { recursive: true });
+  await mkdir(`${OUT_DIR}/privacidade`, { recursive: true });
   await Promise.all([
     writeFile(`${OUT_DIR}/index.html`, renderLanding({ releases, files })),
+    writeFile(`${OUT_DIR}/privacidade/index.html`, renderPrivacy()),
     writeFile(`${OUT_DIR}/updates.json`, `${JSON.stringify(updateManifest(signed), null, 2)}\n`),
     writeFile(`${OUT_DIR}/_redirects`, redirects(files)),
     writeFile(`${OUT_DIR}/_headers`, headers(signed)),

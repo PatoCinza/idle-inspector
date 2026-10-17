@@ -1,6 +1,6 @@
 import { escapeHtml } from './view.js';
 import { formatCount, formatGold, formatInteger, formatDate } from './format.js';
-import { RISK } from '../recommend.js';
+import { RISK, MIN_PROTECTION_SHARE } from '../recommend.js';
 
 const OBJECTIVE_LABELS = { xp: 'XP/h', profit: 'Lucro/h' };
 
@@ -20,7 +20,10 @@ const RISK_PILL = {
 
 const money = (value) => (value < 0 ? `−${formatGold(-value)}` : formatGold(value));
 
-const signedPct = (value) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCount(Math.abs(value))}%`;
+const signedPct = (value) => {
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${formatInteger(Math.abs(rounded))}%`;
+};
 
 const tip = (text, title) => (title ? `<span class="tip" title="${escapeHtml(title)}">${text}</span>` : text);
 
@@ -42,8 +45,10 @@ const profitTip = (row) => (row.rates
   ? `Loot ${formatGold(row.lootPerHour)}/h − supplies ${formatGold(row.suppliesPerHour)}/h${row.rates.suppliesPerHour == null ? ' (supplies da hunt de referência)' : ''}`
   : '');
 
+const spellLabel = (spell) => `${spell.name} (${spell.element} ${signedPct(spell.resist)}${spell.role === 'optional' ? ', opcional' : ''})`;
+
 const memberLine = (member) => `${VOCATION_SHORT[member.vocation] ?? member.vocation}: ${member.spells.length
-  ? member.spells.map((spell) => `${spell.name} (${spell.element} ${signedPct(spell.resist)})`).join(', ')
+  ? member.spells.map(spellLabel).join(', ')
   : 'sem magia em área'}`;
 
 const offenseCell = ({ offense }) => {
@@ -70,6 +75,16 @@ const defenseCell = (row) => {
   return tip(`<span class="pill ${kind}">${label}</span>${ratio}${worst}`, defenseTip(row));
 };
 
+const protectionLine = (imbuement) => `${imbuement.name}: ${imbuement.element} é ${formatCount(imbuement.share * 100)}% do dano recebido, a versão Powerful corta ${formatCount(imbuement.reduction * 100)}% do total`;
+
+const damageLine = (damage) => `${damage.name} na arma (${damage.vocations.map((vocation) => VOCATION_SHORT[vocation] ?? vocation).join(', ')}): converte dano físico em ${damage.element} (resistência média ${signedPct(damage.resist)}), +${formatCount(damage.gain * 100)}% de dano da arma com a Powerful`;
+
+const imbuementCell = ({ imbuements }) => {
+  const names = [...imbuements.protection.map((imbuement) => imbuement.name), ...(imbuements.damage ? [`${imbuements.damage.name} (arma)`] : [])];
+  const lines = [...imbuements.protection.map(protectionLine), ...(imbuements.damage ? [damageLine(imbuements.damage)] : [])];
+  return names.length ? tip(names.map(escapeHtml).join(' · '), lines.join('\n')) : '<span class="dim">—</span>';
+};
+
 const huntRow = (row, index) => `<tr class="${row.group === 'risky' || row.group === 'unrated' ? 'dim' : ''}${row.current ? ' current' : ''}">
   <td class="n">${index + 1}</td>
   <td class="wrap">${huntCell(row)}</td>
@@ -78,6 +93,7 @@ const huntRow = (row, index) => `<tr class="${row.group === 'risky' || row.group
   <td class="n">${ratesCell(row.rates)}</td>
   <td class="wrap">${offenseCell(row)}</td>
   <td>${defenseCell(row)}</td>
+  <td class="wrap">${imbuementCell(row)}</td>
 </tr>`;
 
 const referenceLine = (table) => (table.reference
@@ -101,7 +117,7 @@ export const renderHunts = (table) => `${renderHuntObjectiveNav(table.objective)
   <p class="status">${escapeHtml(xpLine(table))}</p>
   ${warnings(table)}
   <div class="scroll"><table>
-    <thead><tr><th class="n">#</th><th>Hunt</th><th class="n">XP/h</th><th class="n">Lucro/h</th><th class="n">Salas/h</th><th>Ataque</th><th>Defesa</th></tr></thead>
+    <thead><tr><th class="n">#</th><th>Hunt</th><th class="n">XP/h</th><th class="n">Lucro/h</th><th class="n">Salas/h</th><th>Ataque</th><th>Defesa</th><th>Imbuements</th></tr></thead>
     <tbody>${table.rows.map(huntRow).join('')}</tbody>
   </table></div>
-  <p class="foot">XP por sala: 52 criaturas e o boss, que paga 5× a exp da criatura dele; a party divide 40% para o líder e 30% para cada outro, cada um com o próprio XP%. Ataque: elementos com menor resistência média na sala, pesada pelo HP; passe o mouse para as magias em área de cada personagem. Defesa: dano dos monstros por elemento depois das proteções lidas, comparado com o que vocês recebem na hunt de referência (atenção acima de ${formatCount(RISK.caution)}×, arriscada acima de ${formatCount(RISK.risky)}×). Hunts estimadas supõem o mesmo dano e o mesmo tempo fixo por sala da referência.</p>`;
+  <p class="foot">XP por sala: 52 criaturas e o boss, que paga 5× a exp da criatura dele; a party divide 40% para o líder e 30% para cada outro, cada um com o próprio XP%. Ataque: elementos com menor resistência média na sala, pesada pelo HP; passe o mouse para as magias em área de cada personagem. Defesa: dano dos monstros por elemento depois das proteções lidas, comparado com o que vocês recebem na hunt de referência (atenção acima de ${formatCount(RISK.caution)}×, arriscada acima de ${formatCount(RISK.risky)}×). Imbuements: proteção para cada elemento com ${formatCount(MIN_PROTECTION_SHARE * 100)}% ou mais do dano recebido depois das suas proteções (físico não tem imbuement), e dano elemental na arma de knight, paladin e monk quando o elemento rende mais que o físico na sala; leech, crítico e skill valem para qualquer hunt e ficam de fora. Hunts estimadas supõem o mesmo dano e o mesmo tempo fixo por sala da referência.</p>`;

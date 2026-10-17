@@ -91,3 +91,15 @@ test('o .xpi assinado é reconhecido pelo manifest de dentro, com qualquer nome'
   await assert.rejects(readSignedXpi(await xpi({ signed: false })), /não está assinado/);
   await assert.rejects(readSignedXpi(await xpi({ id: 'outra@ext' })), /outra extensão/);
 });
+
+test('página de privacidade: telemetria desligada por padrão, o que vai e o que não vai, e linkada no rodapé', async () => {
+  const { renderPrivacy } = await import('../src/web/privacy.js');
+  const { document } = parseHTML(renderPrivacy());
+  const text = document.querySelector('main').textContent;
+  assert.match(text, /Vêm desligados/);
+  assert.match(text, /O que é enviado/);
+  assert.match(text, /O que nunca é enviado/);
+  assert.match(text, /não vendo/);
+  assert.equal(document.querySelectorAll('main b, main strong').length, 0);
+  assert.ok(page({ chromium: 'x.zip', firefox: null }).querySelector('footer a[href="/privacidade/"]'));
+});

@@ -15,6 +15,7 @@ const UI_KEY = 'blp.ui';
 const api = globalThis.browser ?? globalThis.chrome;
 
 const iconUrl = (id) => api.runtime.getURL(`img/items/${id}.png`);
+const logoUrl = api.runtime.getURL('icons/icon-32.png');
 const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 const telemetry = startTelemetry({ api, storage: extensionStorage, dataset });
@@ -33,6 +34,7 @@ const overlay = Promise.all([extensionStorage.get(UI_KEY).catch(() => undefined)
   doc: document,
   dataset,
   iconUrl,
+  logoUrl,
   ui,
   consentPrompt,
   saveUi: (next) => extensionStorage.set({ [UI_KEY]: next }).catch(() => {}),

@@ -44,15 +44,15 @@ export const firefoxConsent = async (api) => {
   }
 };
 
-export const storedConsent = ({ choice, noticeShown }) => (typeof choice?.granted === 'boolean' ? choice.granted : noticeShown === true);
+export const storedConsent = ({ choice }) => choice?.granted === true;
 
 export const consentDetails = async (api) => {
   const firefox = await firefoxConsent(api);
   const saved = await api.storage.local.get([KEYS.consent, KEYS.asked]);
-  const stored = storedConsent({ choice: saved[KEYS.consent], noticeShown: saved[KEYS.asked] });
-  return { firefox, stored, noticeShown: saved[KEYS.asked] === true, granted: firefox ?? stored };
+  const stored = storedConsent({ choice: saved[KEYS.consent] });
+  return { firefox, stored, noticeShown: saved[KEYS.asked] === true, granted: firefox !== false && stored };
 };
 
-export const needsNotice = ({ firefox, noticeShown }) => firefox === null && !noticeShown;
+export const needsNotice = ({ firefox, noticeShown }) => firefox !== false && !noticeShown;
 
 export const consentGranted = async (api) => (await consentDetails(api)).granted;

@@ -30,7 +30,7 @@ O coletor só lê o tráfego que o jogo já recebe. Ele mede:
 
 ## Extensão (Chrome e Firefox, em desenvolvimento)
 
-Mostra a tabela de drops ao vivo num overlay sobre o jogo, sem colar script no console e sem copiar código. Só lê o tráfego que o jogo já recebe e só envia os dados de uso anônimos, que dá para desligar (veja abaixo). A única interação com a página é o botão "Ler party e charms".
+Mostra a tabela de drops ao vivo num overlay sobre o jogo, sem colar script no console e sem copiar código. Só lê o tráfego que o jogo já recebe e só envia os dados de uso anônimos se você ligar (veja abaixo). A única interação com a página é o botão "Ler party e charms".
 
 ```sh
 npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
@@ -40,6 +40,8 @@ npm run build:ext   # gera dist/extension/chrome e dist/extension/firefox
 - Edge, Opera (e Opera GX) e Brave: o mesmo build do Chrome. `edge://extensions` ou `opera://extensions` → Modo de desenvolvedor → Carregar sem compactação (no Edge, "Carregar sem pacote") → `dist/extension/chrome`.
 - Firefox (140+; Android 142+): `about:debugging#/runtime/this-firefox` → Carregar extensão temporária → `dist/extension/firefox/manifest.json`.
 
+Lojas (Chrome Web Store e Opera): o ícone está em `extension/icons/` (fonte em `logo.svg`), o ícone de loja e o tile promocional em `store/`, e a política de privacidade é publicada pelo `npm run deploy:web` em `/privacidade/` do site. As screenshots precisam ser tiradas do painel de verdade, no jogo.
+
 Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firefox (para enviar ao AMO como não listado), o zip do Chrome, Edge e Opera (`-chrome-edge-opera.zip`: o mesmo build do Chrome, porque Edge, Opera e Brave são baseados no Chromium; pasta `baiak-loot-planner/` com `COMO-INSTALAR.txt`, para carregar sem compactação) e o código-fonte que o AMO pede, com as instruções de build em `BUILDING.md`. A versão vem do `extension/manifest.json` e tem que ser igual à do `package.json` (um teste confere); suba as duas a cada versão nova com `npm run bump:ext` (patch; `-- minor`, `-- major` ou `-- 1.2.3` para escolher), que também atualiza o `package-lock.json`, porque o AMO não aceita repetir versão e o `app_version` dos eventos separa os builds no PostHog.
 
 ### Site (baiak-loot.pages.dev)
@@ -47,7 +49,7 @@ Para distribuir: `npm run package:ext` gera em `dist/release/` o pacote do Firef
 O site de download fica no Cloudflare Pages, na mesma conta do relay. `npm run build:web` gera `dist/web/` com a página (instalação, tutorial, dados de uso e novidades), o planner em `/planner/`, o zip do Chrome/Opera, os `.xpi` assinados, o `updates.json` do Firefox e os links curtos `/chrome`, `/edge`, `/opera` e `/firefox`. `npm run deploy:web` gera e publica.
 
 - As novidades ficam em `web/releases.json`; o build falha se a versão mais nova dali não for a do manifest.
-- O `.xpi` assinado vai em `web/signed/baiak-loot-planner-<versão>-firefox.xpi`. Sem ele, o botão do Firefox aparece como "em breve". `npm run sign:firefox` faz o envio ao AMO (não listado, com o código-fonte), espera a assinatura e salva o arquivo ali; precisa de `WEB_EXT_API_KEY` e `WEB_EXT_API_SECRET`, criadas em https://addons.mozilla.org/developers/addon/api/key/.
+- O `.xpi` assinado vai em `web/signed/baiak-loot-planner-<versão>-firefox.xpi`. Sem ele, o botão do Firefox aparece como "em breve". `npm run sign:firefox` faz o envio ao AMO (não listado, com o código-fonte), espera a assinatura e salva o arquivo ali; precisa de `WEB_EXT_API_KEY` e `WEB_EXT_API_SECRET`, criadas em https://addons.mozilla.org/developers/addon/api/key/, no ambiente ou num `.env` na raiz do repositório (fora do git), que o script carrega.
 - O manifest do Firefox leva `update_url` apontando para `https://baiak-loot.pages.dev/updates.json` (`src/site.js`). Esse endereço fica gravado em cada instalação: não troque o projeto nem o domínio depois de distribuir.
 
 A aba Início, que abre na primeira vez, mostra uma lista dos primeiros passos com o que já está pronto (jogo conectado, hunt identificada, 2 min de medição, party, charms, combate e Codex) e explica cada aba e cada botão.
@@ -79,11 +81,21 @@ Ordena todas as hunts liberadas por XP/h ou por lucro/h (loot − supplies), com
 - **Ritmo (salas/h):** ao vivo na hunt atual, a última medição nas hunts já caçadas e, nas outras, estimado pela hunt de referência. A referência é a última medição ao vivo com 2 min e 2 salas ou mais; ela guarda o dano da party por segundo (sem resistência, pela mistura de elementos medida no `combatlog`) e o tempo fixo por sala (o tempo da sala menos o tempo de dano). Numa hunt estimada, a sala leva esse tempo fixo (proporcional ao `spawnMs`) mais o HP da sala depois das resistências ÷ o dano da party.
 - **XP:** exp base das kills (o boss paga 5× a exp da criatura dele) × o fator de XP da party. O fator é medido (XP creditada pelo jogo ÷ exp base das kills); sem medição, vem do XP% lido de cada membro: o líder recebe 40% da exp e cada outro 30%, cada parte × 0,99 × (1 + XP% do personagem). As fontes de XP de um personagem somam; o total multiplica só a parte dele.
 - **Lucro:** loot pelo modelo de drops com o ritmo da hunt, o bônus de loot da party e os charms equipados, menos as supplies/h medidas na hunt (ou as da referência).
-- **Ataque:** os dois elementos de menor resistência média na sala (pesada pelo HP de cada criatura) e, no tooltip, as três melhores magias em área de cada personagem pelo dano médio no level e magic level dele depois da resistência. Magia de especialização (Death Nova, Devastating Strike…) só entra se o personagem já foi visto usando. O tooltip também diz quanto a mistura de elementos medida rende em relação a pôr todo o dano no melhor elemento.
+- **Ataque:** os dois elementos de menor resistência média na sala (pesada pelo HP de cada criatura) e, no tooltip, a rotação de cada personagem. Mages seguem a rotação padrão (ver Aba Conferir): as duas Ultimate Explosions, o fork do ED, a runa de área que mais rende e o Death Echo opcional do MS. As outras vocações mostram as três melhores magias em área pelo dano médio no level e magic level depois da resistência. Magia de especialização (Death Nova, runas Max…) só entra se o personagem já foi visto usando. O tooltip também diz quanto a mistura de elementos medida rende em relação a pôr todo o dano no melhor elemento.
 - **Defesa:** dano dos monstros por elemento (corpo a corpo e magias, `maxAlive` atacando juntos) depois da proteção média da party, comparado com o mesmo cálculo na hunt de referência, onde o dano recebido é medido. Acima de 1,25× é "atenção", acima de 2× é "arriscada" e vai para o fim da lista. O tooltip mostra o recebido estimado, o elemento que mais pesa contra a sua proteção e a criatura que mais bate (candidata a Parry ou Dodge).
+- **Imbuements:** proteção para cada elemento que é 10% ou mais do dano recebido na hunt depois das proteções da party, ordenada pelo quanto a versão Powerful corta do total (físico não tem imbuement de proteção), e dano elemental na arma de knight, paladin e monk quando o elemento rende pelo menos 2% a mais que o físico contra a resistência média da sala. Leech, crítico e skill valem em qualquer hunt e ficam de fora. A tabela de imbuements vem do cliente (`imbuements` no `data/game.json`).
 - O `minLevel` das hunts é só o level sugerido pelo jogo (não bloqueia a entrada): aparece em amarelo quando a party está abaixo.
 
 Medido em 16/10 na Wandering Pillar (party de 3, 2 salas, ~300 kills): cada kill manda um `fx` `xp` por personagem; as partes ficaram em 0,396 / 0,297 / 0,297 da exp da criatura depois de tirar o XP% de cada um (46, 32 e 48%), em todas as criaturas, e o boss pagou 2× isso. O XP Stack da sala é a soma do que cada personagem recebeu (`test/fixtures/xp-split-wandering.json`).
+
+### Aba Conferir
+
+Confere, na hunt atual, se magias, build e charms estão certos (`src/check.js`, `src/mage-meta.js`).
+
+- **Magias (MS e ED):** as duas Ultimate Explosions nos slots 1 e 2 (Rage of the Skies e Hell's Core no MS; Wrath of Nature e Eternal Winter no ED). O ED usa Forked Glacier ou Forked Thorns; o MS pode usar Death Echo. A runa é uma das quatro de área boas de mirar (Avalanche, Thunderstorm, Stone Shower, Great Fireball), a que mais rende aqui: dano médio no level e magic level (mais o magic level do elemento), × (1 + dano do elemento) × crítico do elemento × perk de dano base da magia × (1 − resistência da sala menos a penetração). Empate vai para os elementos da vocação (energy/fire no MS, ice/earth no ED). A rotação medida contra criaturas é comparada com isso: falta de Ultimate Explosion ou de fork é erro; runa ou fork que rende 5% ou mais abaixo do melhor, runa fora das quatro, nenhuma runa ou magia fora da rotação é atenção. O tráfego mostra o cast, não o slot.
+- **Build:** lembrete de pôr os pontos em dano e magic level do elemento da runa e do fork, com o bônus de dano por elemento lido do painel de status; atenção quando a build não dá dano nesse elemento.
+- **Charms:** o plano da aba Charms (no objetivo escolhido lá) contra os charms equipados: um charm fora do lugar é atenção, dois ou mais é erro; os charms de dano equipados rendendo 5% ou mais abaixo do plano é atenção, 15% ou mais é erro.
+- Knight, paladin e monk ainda não têm regra de rotação.
 
 ### Aba Rotação
 
@@ -100,13 +112,13 @@ Medido em 04/10 na Bloated Man-Maggot (11 min de ondas, 7 salas): Death Echo 27k
 
 ## Dados de uso anônimos (PostHog)
 
-Ligados por padrão (opt-out), sempre com aviso antes do primeiro envio. Desligar não muda nada no funcionamento da extensão.
+Desligados por padrão (opt-in): nada é enviado até a pessoa ligar. Ligar ou não, nada muda no funcionamento da extensão.
 
-- **Firefox 140+:** usa a permissão de coleta de dados do próprio navegador (`technicalAndInteraction`, opcional). Ela vem marcada na tela de instalação e pode ser desmarcada ali; o overlay não mostra aviso. Detectada por `permissions.getAll()`. Uma extensão carregada pelo `about:debugging` não passa pela tela de instalação, então a permissão começa desligada (ligue em `about:addons` → Permissões).
-- **Chrome e Opera:** na primeira vez que o overlay abre, ele mostra um aviso com "Ver o que é enviado", "Desligar" e "Ok". O envio só começa depois que o aviso apareceu (`blp.consentAsked`), e uma escolha salva em `blp.consent` sempre vale mais que o padrão.
+- **Firefox 140+:** a permissão de coleta do navegador (`technicalAndInteraction`, opcional) vem marcada na tela de instalação, mas sozinha não liga nada: o envio precisa dela e do "Ligar" no aviso do overlay ou nas opções. Se ela for desmarcada na instalação, o overlay nem pergunta. Detectada por `permissions.getAll()`. Uma extensão carregada pelo `about:debugging` não passa pela tela de instalação, então a permissão começa desligada (ligue em `about:addons` → Permissões).
+- **Chrome e Opera:** na primeira vez que o overlay abre, ele mostra um aviso com "Ver o que é enviado", "Agora não" e "Ligar" (`blp.consentAsked` marca que já perguntou). O envio só acontece com `blp.consent` salvo como ligado.
 - O botão "Dados" e a página de opções mostram o que é enviado e desligam ou religam o envio.
 
-O Mozilla permite opt-out só para dados técnicos e de interação, desde que a pessoa possa desligar já na primeira experiência e nada deixe de funcionar. Se o AMO classificar algum campo como conteúdo ou atividade do site, a coleta desse campo teria que virar opt-in.
+Opt-in atende ao AMO, à Chrome Web Store e ao Opera sem depender de como cada loja classifica os campos.
 
 Com o envio ligado, a extensão manda a cada 10 minutos, ao trocar de janela de medição e ao fechar a aba, pelo background, para o relay (`https://blp-vega.gabriel-luis-cinza.workers.dev/v1/punk`), que repassa ao PostHog:
 
@@ -212,6 +224,7 @@ O preço de cada item segue a mesma regra do Loot Analyser do jogo: o `value` do
 | `src/run.js`, `scripts/hunt-runs.js` | Sala completa: xp, HP total e dano por segundo das criaturas e do boss |
 | `src/xp-tracker.js`, `src/dom/party-xp.js`, `src/overlay/xp-view.js` | Aba XP: barras de experiência a cada sala, XP/h real e ao vivo, tempo para o próximo level |
 | `src/recommend.js`, `src/overlay/hunts-view.js` | Aba Hunts: referência medida, ritmo estimado, XP/h e lucro/h por hunt, ataque e defesa |
+| `src/check.js`, `src/mage-meta.js`, `src/overlay/check-view.js` | Aba Conferir: rotação padrão de mage, lembrete de build e charms contra o plano |
 | `site/` | Template, estilos e app do site |
 | `test/` | Testes com `node:test`, incluindo a calibração com as sessões do Rotten Golem e do Infernal Demon |
 

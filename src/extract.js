@@ -122,6 +122,7 @@ const ANCHORS = {
   rarities: ['{0:"Comum",1:"Incomum"', '{'],
   bossWave: ['boss:{hpMult:', '{'],
   spells: ['words:"exevo mort ora"', '['],
+  imbuements: ['{key:"vampirism",name:"Vampirism"', '['],
 };
 
 const BASE_MONSTERS = /([\w$]+)=\{troll:\{name:"Troll"/;
@@ -279,5 +280,6 @@ export const extractDataset = (src, { version = null } = {}) => {
     rarities: Object.entries(read('rarities')).sort(([a], [b]) => Number(a) - Number(b)).map(([, name]) => name),
     bossWave: read('bossWave').boss,
     spells: attackSpells(read('spells')),
+    imbuements: read('imbuements').map(({ key, name, cat, kind, element, skill, values }) => ({ key, name, cat, kind, ...(element ? { element } : {}), ...(skill ? { skill } : {}), values })),
   };
 };

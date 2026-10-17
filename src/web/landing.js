@@ -55,7 +55,7 @@ const install = ({ files }) => `<section id="instalar">
     ? list([
       'Clique em <b>Baixar para Firefox</b>.',
       'O Firefox pergunta se este site pode instalar extensões: clique em <b>Continuar para a instalação</b> e depois em <b>Adicionar</b>.',
-      'Na mesma tela aparece a opção de dados de uso anônimos, já marcada. Desmarque se não quiser enviar.',
+      'Na mesma tela aparece a permissão de dados de uso anônimos. Ela só autoriza: nada é enviado até você ligar no painel.',
       'Pronto. As versões novas chegam sozinhas.',
     ], 'ol')
     : '<p class="dim">A versão para Firefox está sendo assinada pelo Mozilla e aparece aqui em breve, com atualização automática.</p>'}
@@ -89,7 +89,7 @@ const tutorial = () => `<section id="como-usar">
 const privacy = () => `<section id="dados">
   <h2>Dados de uso anônimos</h2>
   <div class="notice">
-    <p>Vêm <b>ligados</b>. A cada 10 minutos, a extensão envia um resumo das suas hunts para calibrar o modelo de loot e de charms. Na primeira vez, o painel avisa e oferece o botão <b>Desligar</b> (no Firefox, a opção aparece na instalação). Dá para mudar a qualquer momento no botão <b>Dados</b> do painel ou nas opções da extensão, e desligar não muda nada no funcionamento.</p>
+    <p>Vêm <b>desligados</b>. Na primeira vez, o painel pergunta se você quer ligar; ligados, a cada 10 minutos a extensão envia um resumo das suas hunts para calibrar o modelo de loot e de charms. Dá para mudar a qualquer momento no botão <b>Dados</b> do painel ou nas opções da extensão, e nada muda no funcionamento. Detalhes na <a href="/privacidade/">política de privacidade</a>.</p>
   </div>
   <div class="grid spaced">
     <div class="card"><h3>O que é enviado</h3>${escapedList(SENT)}</div>
@@ -129,7 +129,7 @@ ${tutorial()}
 ${privacy()}
 ${planner()}
 ${changelog(releases)}
-<footer>Ferramenta de fã para o Baiak Idle, sem vínculo oficial com o jogo. Ela só lê o que o jogo já envia ao navegador e não joga por você.</footer>
+<footer>Ferramenta de fã para o Baiak Idle, sem vínculo oficial com o jogo. Ela só lê o que o jogo já envia ao navegador e não joga por você. <a href="/privacidade/">Privacidade</a>.</footer>
 </main>
 </body>
 </html>

@@ -1,0 +1,135 @@
+<!doctype html><meta charset="utf-8"><style>
+:host { all: initial; }
+* { box-sizing: border-box; }
+.panel {
+  position: fixed; top: 72px; right: 12px; z-index: 2147483647;
+  width: min(780px, calc(100vw - 16px)); max-height: min(72vh, 680px);
+  display: flex; flex-direction: column;
+  background: rgba(17, 18, 23, 0.95); color: #e6e6ea;
+  border: 1px solid #3b3d48; border-radius: 8px;
+  font: 12px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+}
+.panel.collapsed { width: auto; }
+.panel.collapsed .body { display: none; }
+.bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 6px 8px 6px 12px; cursor: grab; user-select: none;
+  border-bottom: 1px solid #2c2e38;
+}
+.panel.collapsed .bar { border-bottom: 0; }
+.bar strong { font-size: 12px; letter-spacing: 0.02em; display: flex; align-items: center; gap: 6px; }
+.logo { width: 20px; height: 20px; flex: none; }
+.panel.collapsed .title, .panel.collapsed .tabs { display: none; }
+.panel.collapsed .bar { gap: 6px; padding: 4px 6px; }
+.ghost {
+  all: unset; cursor: pointer; padding: 2px 8px; border-radius: 4px; color: #b9bac4;
+}
+.ghost:hover, .ghost:focus-visible { background: #2a2c36; color: #fff; }
+.ghost[disabled] { cursor: progress; opacity: 0.6; }
+.actions { display: flex; align-items: center; gap: 4px; }
+.body { display: flex; flex-direction: column; min-height: 0; padding: 8px 12px 10px; gap: 6px; }
+.status { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: #c7c8d1; }
+.since { color: #8d8f9c; }
+p.status { margin: 0; }
+.scroll { overflow: auto; min-height: 0; border: 1px solid #2c2e38; border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 4px 7px; text-align: left; white-space: nowrap; }
+th {
+  position: sticky; top: 0; background: #1d1f27; color: #b9bac4; font-weight: 600;
+  cursor: pointer; user-select: none; border-bottom: 1px solid #2c2e38;
+}
+th:not([data-sort]) { cursor: default; }
+th[data-sort]:hover, th:focus-visible { color: #fff; outline: none; }
+th.active { color: #f2c66b; }
+.n { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.025); }
+tbody tr:hover { background: rgba(255, 255, 255, 0.06); }
+td.item { display: flex; align-items: center; gap: 8px; }
+td.creatures { max-width: 150px; overflow: hidden; text-overflow: ellipsis; color: #9a9cab; }
+.icon { width: 28px; height: 28px; image-rendering: pixelated; flex: none; }
+.icon.empty { display: inline-block; background: #242631; border-radius: 4px; }
+.dim { color: #6f7180; }
+.waiting { margin: 6px 0; color: #c7c8d1; }
+.warn { margin: 0; color: #e7b75a; }
+.notice { margin: 0; }
+.notice.ok { color: #7fd39a; }
+.total { margin: 0; font-weight: 600; }
+.tabs { display: flex; gap: 2px; }
+.tab { all: unset; cursor: pointer; padding: 3px 10px; border-radius: 4px; color: #9a9cab; }
+.tab:hover, .tab:focus-visible { background: #2a2c36; color: #fff; }
+.tab.active { background: #2f3140; color: #f2c66b; }
+.subtabs { margin: 0 0 6px; }
+tr.deliverable td { background: #1d2a22; }
+tr.deliverable td:first-child { box-shadow: inset 3px 0 0 #7fd39a; }
+.drop { color: #7fd39a; font-weight: 600; }
+.panel.fill { height: min(72vh, 680px); }
+.panel.fill .body { flex: 1 1 auto; }
+.panel.collapsed.fill { height: auto; }
+.split { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; }
+.pane { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.pane.major { flex: 6 1 0; }
+.pane.minor { flex: 4 1 0; }
+.pane > .scroll { flex: 1 1 auto; }
+.pane > p { margin: 0; flex: none; }
+.planner { padding: 8px 12px 0; }
+.consent { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 12px; background: #1d2a22; color: #c7c8d1; border-bottom: 1px solid #2c2e38; }
+.consent:empty, .panel.collapsed .consent { display: none; }
+.consent span { flex: 1 1 260px; }
+.planner:empty, .panel.collapsed .planner { display: none; }
+.picker { display: flex; align-items: center; gap: 6px; color: #c7c8d1; }
+.picker select { background: #1d1f27; color: #e6e7ee; border: 1px solid #343744; border-radius: 4px; padding: 2px 4px; max-width: 260px; }
+.meter { display: block; width: 90px; height: 6px; background: #242631; border-radius: 3px; overflow: hidden; }
+.meter > span { display: block; height: 100%; background: #6fb5ff; }
+.pill { font-size: 11px; color: #c7c8d1; }
+.pill.good { color: #7fd39a; }
+.pill.warn { color: #e7b75a; }
+.pill.bad { color: #e7766a; }
+small.warn { color: #e7b75a; }
+tr.current td { background: rgba(127, 211, 154, 0.08); }
+.compare { margin: 2px 8px 6px; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
+.plans h3 { margin: 8px 8px 4px; font-size: 12px; }
+.plans table { margin-bottom: 4px; }
+.status-pill { margin-left: 8px; font-weight: 400; color: #c7c8d1; }
+tr.bottleneck { background: rgba(242, 198, 107, 0.1); }
+.foot { margin: 0; color: #8d8f9c; font-size: 11px; }
+.checkview { padding: 4px 0 8px; }
+.checkview h3 { margin: 8px 8px 2px; font-size: 12px; }
+.checkview h4 { margin: 4px 8px 2px; font-size: 11px; font-weight: 600; color: #8d8f9c; }
+.checkview .foot, .checkview > p { margin: 4px 8px; }
+ul.checks { margin: 0 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.welcome { padding: 4px 8px 8px; }
+.welcome p { margin: 4px 8px; }
+.welcome .foot { margin: 8px; }
+.checklist, .controls { margin: 4px 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.controls { padding-left: 16px; list-style: disc; }
+.checklist li { display: flex; gap: 8px; align-items: baseline; }
+.checklist .mark { width: 12px; flex: none; text-align: center; }
+.checklist .done .mark { color: #7fd39a; }
+.checklist .todo .mark { color: #e7b75a; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 4px 8px; }
+.card { border: 1px solid #2c2e38; border-radius: 6px; padding: 6px 8px; background: #1a1c23; }
+.card h4 { margin: 0 0 2px; font-size: 12px; }
+.card p { margin: 2px 0; }
+.ghost.inline { padding: 0 6px; color: #f2c66b; }
+.tip { text-decoration: underline dotted #6f7180; text-underline-offset: 3px; cursor: help; }
+td.wrap { white-space: normal; min-width: 120px; }
+ body{background:#0e0f14;margin:0;padding:12px}</style><section class="panel" style="position:static;width:560px"><div class="body"><div class="checkview"><p class="status"><b>Wandering Pillar</b> <span class="pill bad">errado</span></p>
+    <section class="check">
+  <h3>Pato Mago <small class="dim">MS</small> <span class="pill bad">errado</span></h3>
+  <h4>Magias</h4><ul class="checks"><li><span class="pill good">ok</span> Rage of the Skies na rotação.</li><li><span class="pill bad">errado</span> Falta Hell&#39;s Core: as duas Ultimate Explosions vão nos slots 1 e 2.</li><li><span class="pill warn">atenção</span> Troque Great Fireball por Thunderstorm: a runa rende 157% mais aqui.</li></ul>
+  <h4>Build</h4><ul class="checks"><li><span class="pill good">ok</span> Aqui a runa bate de energy (resistência média -9%): os pontos da build vão em dano de energy e magic level de energy.</li><li><span class="pill good">ok</span> Bônus lido hoje: dano energy +25.2%.</li></ul>
+</section><section class="check">
+  <h3>PatoCinza <small class="dim">EK</small></h3>
+  <h4>Magias</h4><ul class="checks"><li><span class="pill good">ok</span> Sem regra de rotação para esta vocação ainda.</li></ul>
+  
+</section><section class="check">
+  <h3>Pato Druida <small class="dim">ED</small> <span class="pill warn">atenção</span></h3>
+  <h4>Magias</h4><ul class="checks"><li><span class="pill good">ok</span> Wrath of Nature na rotação.</li><li><span class="pill good">ok</span> Eternal Winter na rotação.</li><li><span class="pill warn">atenção</span> Troque Forked Thorns por Forked Glacier: o fork rende 48% mais aqui.</li><li><span class="pill good">ok</span> Avalanche é a runa certa aqui.</li></ul>
+  <h4>Build</h4><ul class="checks"><li><span class="pill good">ok</span> Aqui a runa e o fork batem de ice (resistência média -1%): os pontos da build vão em dano de ice e magic level de ice.</li><li><span class="pill good">ok</span> Bônus lido hoje: dano ice +18%.</li></ul>
+</section>
+    <section class="check">
+  <h3>Charms</h3>
+  <ul class="checks"><li><span class="pill warn">atenção</span> Gut deveria estar em Wandering Pillar.</li><li><span class="pill warn">atenção</span> Os charms de dano equipados rendem 10% menos que o plano.</li></ul>
+</section>
+    <p class="foot">Magias: mages usam as duas Ultimate Explosions nos slots 1 e 2; o MS pode usar Death Echo; o ED usa o fork de ice ou earth; e todo mage usa a runa de área (Avalanche, Thunderstorm, Stone Shower ou Great Fireball) que mais rende aqui, pesando o bônus do personagem no elemento e a resistência da sala. Só a rotação contra criaturas conta; o slot exato não aparece no tráfego. Build: lembrete do elemento que mais rende na hunt. Charms: compara com o plano da aba Charms.</p></div></div></section>

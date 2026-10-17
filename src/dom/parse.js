@@ -13,6 +13,24 @@ const PROFICIENCY_BONUS = /([^\n+\d][^\n+]*?)\s*\+\s*([\d.,]+)\s*(%?)/g;
 const SKILL = /(Magic|Fist|Sword|Axe|Club|Distance|Shielding)\s*(\d+)\s*(?:\+\s*(\d+))?/g;
 const PROTECTION = /(?:Prote\u00e7\u00e3o|Protection)\s*(physical|energy|earth|fire|ice|holy|death)\s*\+?\s*(-?[\d.,]+)%/gi;
 
+const EL = '(physical|energy|earth|fire|ice|holy|death)';
+const ELEMENT_BONUS = [
+  ['dmgPct', new RegExp(`(?:Dano|Damage) ${EL}\\s*\\+?\\s*(-?[\\d.,]+)%`, 'gi')],
+  ['magicLevel', new RegExp(`Magic level (?:de )?${EL}\\s*\\+?\\s*([\\d.,]+)`, 'gi')],
+  ['pierce', new RegExp(`(?:Penetra..o de|Pierce) ${EL}\\s*\\+?\\s*([\\d.,]+)%`, 'gi')],
+  ['critChance', new RegExp(`(?:Chance de cr.tico em magias e runas de|Crit chance for) ${EL}\\s*\\+?\\s*([\\d.,]+)%`, 'gi')],
+  ['critDmg', new RegExp(`(?:Dano cr.tico em magias e runas de|Crit damage for) ${EL}\\s*\\+?\\s*([\\d.,]+)%`, 'gi')],
+];
+const BASE_DAMAGE = /^(.+?)\s+[^\w\s]\s+(?:Dano base|Base damage|Dano)$/i;
+
+const elementsOf = (text) => ELEMENT_BONUS
+  .flatMap(([stat, pattern]) => [...text.matchAll(pattern)].map(([, element, value]) => [element.toLowerCase(), stat, toDecimal(value)]))
+  .reduce((acc, [element, stat, value]) => ({ ...acc, [element]: { ...acc[element], [stat]: Math.max(acc[element]?.[stat] ?? -Infinity, value) } }), {});
+
+const augmentsOf = (proficiency) => Object.fromEntries((proficiency?.bonuses ?? [])
+  .map((bonus) => [bonus.label.match(BASE_DAMAGE)?.[1], bonus.value])
+  .filter(([name, value]) => name && value > 0));
+
 const protectionOf = (bonus) => Object.fromEntries([...bonus.matchAll(PROTECTION)].map(([, element, value]) => [element.toLowerCase(), toDecimal(value)]));
 
 const skillsOf = (text) => Object.fromEntries(
@@ -43,6 +61,8 @@ export const parseCharacter = (text) => {
   const skills = skillsOf(text);
   const proficiency = proficiencyOf(text);
   const protection = protectionOf(bonus);
+  const elements = elementsOf(text.split(SECTION_START).slice(1).join(' ').split(PROFICIENCY_END)[0]);
+  const spellAugments = augmentsOf(proficiency);
   return {
     level: toNumber(head.match(/(?:N\u00edvel|Level)\s*([\d.]+)/i)?.[1] ?? 0),
     maxHp: toNumber(head.match(/(?:Pontos de Vida|Hit Points)\s*([\d.]+)/i)?.[1] ?? 0),
@@ -53,6 +73,8 @@ export const parseCharacter = (text) => {
     spellDmgPct: percent(/(?:Dano de magia|Spell damage|Magic damage)\s*\+?([\d.,]+)%/i),
     xpPct: percent(/\bXP\s*\+\s*([\d.,]+)%/),
     ...(Object.keys(protection).length ? { protection } : {}),
+    ...(Object.keys(elements).length ? { elements } : {}),
+    ...(Object.keys(spellAugments).length ? { spellAugments } : {}),
     ...(skills.magic ? { magicLevel: skills.magic.base + skills.magic.bonus, skills } : {}),
     ...(proficiency ? { proficiency } : {}),
   };

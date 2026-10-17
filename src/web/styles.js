@@ -8,6 +8,8 @@ html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
 a { color: var(--accent); }
 main { max-width: 920px; margin: 0 auto; padding: 0 16px 64px; }
+main.policy { max-width: 720px; padding-top: 32px; }
+main.policy h3 { margin: 16px 0 4px; }
 nav.top { position: sticky; top: 0; z-index: 2; background: rgb(17 18 23 / 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
 nav.top div { max-width: 920px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 16px; align-items: center; overflow-x: auto; white-space: nowrap; }
 nav.top strong { margin-right: auto; }

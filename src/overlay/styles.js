@@ -18,7 +18,10 @@ export const STYLES = `
   border-bottom: 1px solid #2c2e38;
 }
 .panel.collapsed .bar { border-bottom: 0; }
-.bar strong { font-size: 12px; letter-spacing: 0.02em; }
+.bar strong { font-size: 12px; letter-spacing: 0.02em; display: flex; align-items: center; gap: 6px; }
+.logo { width: 20px; height: 20px; flex: none; }
+.panel.collapsed .title, .panel.collapsed .tabs { display: none; }
+.panel.collapsed .bar { gap: 6px; padding: 4px 6px; }
 .ghost {
   all: unset; cursor: pointer; padding: 2px 8px; border-radius: 4px; color: #b9bac4;
 }
@@ -90,6 +93,11 @@ tr.current td { background: rgba(127, 211, 154, 0.08); }
 .status-pill { margin-left: 8px; font-weight: 400; color: #c7c8d1; }
 tr.bottleneck { background: rgba(242, 198, 107, 0.1); }
 .foot { margin: 0; color: #8d8f9c; font-size: 11px; }
+.checkview { padding: 4px 0 8px; }
+.checkview h3 { margin: 8px 8px 2px; font-size: 12px; }
+.checkview h4 { margin: 4px 8px 2px; font-size: 11px; font-weight: 600; color: #8d8f9c; }
+.checkview .foot, .checkview > p { margin: 4px 8px; }
+ul.checks { margin: 0 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .welcome { padding: 4px 8px 8px; }
 .welcome p { margin: 4px 8px; }
 .welcome .foot { margin: 8px; }
