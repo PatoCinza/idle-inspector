@@ -63,7 +63,7 @@ const offenseCell = ({ offense }) => {
 
 const defenseTip = ({ defense }) => [
   defense.takenPerSecond === null ? `Dano bruto dos monstros: ${formatGold(defense.raw)}/s` : `Recebido estimado: ${formatGold(defense.takenPerSecond)}/s`,
-  defense.ratio === null ? 'Sem hunt de referência para comparar' : `${formatCount(defense.ratio)}× o dano da hunt de referência, depois das suas proteções`,
+  defense.ratio === null ? 'Sem hunt caçada para comparar' : `${formatCount(defense.ratio)}× o dano da ${defense.baseline.name}, a hunt mais pesada que vocês já caçaram, depois das suas proteções`,
   defense.worst ? `Maior fonte: ${defense.worst.element} (${formatCount(defense.worst.share * 100)}% do recebido, sua proteção média ${formatCount(defense.worst.protection)}%)` : '',
   defense.hitter ? `Quem mais bate: ${defense.hitter.name} (candidata a Parry ou Dodge)` : '',
 ].filter(Boolean).join('\n');
@@ -100,6 +100,10 @@ const referenceLine = (table) => (table.reference
   ? `Referência: ${table.referenceHunt?.name ?? table.reference.huntId} · ${formatCount(3600 / table.reference.roomSeconds)} salas/h · ${formatCount(table.reference.overheadSeconds)} s por sala fora do dano · dano ${formatGold(table.reference.rawDps)}/s sem resistência${table.reference.t ? ` · ${formatDate(table.reference.t)}` : ''}`
   : 'Sem hunt de referência: cace pelo menos 2 min e 2 salas para estimar as outras hunts.');
 
+const baselineLine = (table) => (table.baseline
+  ? `Defesa comparada com a ${table.baseline.name}, a hunt mais pesada que vocês já caçaram.`
+  : '');
+
 const XP_SOURCE = {
   measured: (factor) => `XP: ${formatCount(factor)}× a exp base (medido pela XP que o jogo creditou)`,
   party: (factor) => `XP: ${formatCount(factor)}× a exp base (pelo XP% lido da party: líder 40%, demais 30%)`,
@@ -115,9 +119,10 @@ const warnings = (table) => [
 export const renderHunts = (table) => `${renderHuntObjectiveNav(table.objective)}
   <p class="status">${escapeHtml(referenceLine(table))}</p>
   <p class="status">${escapeHtml(xpLine(table))}</p>
+  ${table.baseline ? `<p class="status">${escapeHtml(baselineLine(table))}</p>` : ''}
   ${warnings(table)}
   <div class="scroll"><table>
     <thead><tr><th class="n">#</th><th>Hunt</th><th class="n">XP/h</th><th class="n">Lucro/h</th><th class="n">Salas/h</th><th>Ataque</th><th>Defesa</th><th>Imbuements</th></tr></thead>
     <tbody>${table.rows.map(huntRow).join('')}</tbody>
   </table></div>
-  <p class="foot">XP por sala: 52 criaturas e o boss, que paga 5× a exp da criatura dele; a party divide 40% para o líder e 30% para cada outro, cada um com o próprio XP%. Ataque: elementos com menor resistência média na sala, pesada pelo HP; passe o mouse para as magias em área de cada personagem. Defesa: dano dos monstros por elemento depois das proteções lidas, comparado com o que vocês recebem na hunt de referência (atenção acima de ${formatCount(RISK.caution)}×, arriscada acima de ${formatCount(RISK.risky)}×). Imbuements: proteção para cada elemento com ${formatCount(MIN_PROTECTION_SHARE * 100)}% ou mais do dano recebido depois das suas proteções (físico não tem imbuement), e dano elemental na arma de knight, paladin e monk quando o elemento rende mais que o físico na sala; leech, crítico e skill valem para qualquer hunt e ficam de fora. Hunts estimadas supõem o mesmo dano e o mesmo tempo fixo por sala da referência.</p>`;
+  <p class="foot">XP por sala: 52 criaturas e o boss, que paga 5× a exp da criatura dele; a party divide 40% para o líder e 30% para cada outro, cada um com o próprio XP%. Ataque: elementos com menor resistência média na sala, pesada pelo HP; passe o mouse para as magias em área de cada personagem. Defesa: dano dos monstros por elemento depois das proteções lidas, comparado com a hunt mais pesada que vocês já caçaram por 2 min ou mais (atenção acima de ${formatCount(RISK.caution)}×, arriscada acima de ${formatCount(RISK.risky)}×). Imbuements: proteção para cada elemento com ${formatCount(MIN_PROTECTION_SHARE * 100)}% ou mais do dano recebido depois das suas proteções (físico não tem imbuement), e dano elemental na arma de knight, paladin e monk quando o elemento rende mais que o físico na sala; leech, crítico e skill valem para qualquer hunt e ficam de fora. A hunt de referência só calibra o recebido estimado em dano por segundo. Hunts estimadas supõem o mesmo dano e o mesmo tempo fixo por sala da referência.</p>`;

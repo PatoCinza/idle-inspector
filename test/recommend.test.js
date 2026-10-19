@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   PARTY_XP_SHARES, PARTY_XP_FACTOR, RISK, partyXpFactor, baseXp, referenceOf, huntRates, roomKills, roomOf,
-  offenseOf, defenseOf, partyProtection, recommendHunts, rankHunts, elementMix, castWords,
+  offenseOf, defenseOf, partyProtection, comfortBaseline, huntedIds, recommendHunts, rankHunts, elementMix, castWords,
 } from '../src/recommend.js';
 import { BOSS_EXP_MULT } from '../src/run.js';
 import { renderHunts } from '../src/overlay/hunts-view.js';
@@ -135,6 +135,28 @@ test('defesa compara o dano da hunt com o da referência depois das proteções'
   assert.ok(radiant.ratio > 1);
   assert.ok(['caution', 'risky'].includes(radiant.risk));
   assert.equal(defenseOf({ dataset, hunt, protection, reference: null }).risk, null);
+});
+
+test('defesa compara com a hunt mais pesada já caçada; a hunt atual só calibra o recebido', () => {
+  const protection = partyProtection(party);
+  const library = dataset.hunts.find((h) => h.id === 'livrariaice-cave');
+  const bloated = dataset.hunts.find((h) => h.id === 'bloatedmanmaggot-cave');
+  const libraryWindow = { ...window, huntId: library.id, kills: roomKills(dataset, library, 6) };
+  const reference = referenceOf({ dataset, window: libraryWindow, combat, xp: 0 });
+  const onlyLibrary = comfortBaseline({ dataset, protection, hunted: huntedIds({ reference }) });
+  assert.equal(onlyLibrary.huntId, library.id);
+  const saved = { [bloated.id]: { rooms: 30, minutes: 40, kills: {} }, [hunt.id]: { rooms: 1, minutes: 1, kills: {} } };
+  const hunted = huntedIds({ saved, reference });
+  assert.deepEqual(hunted.sort(), [bloated.id, library.id].sort());
+  const baseline = comfortBaseline({ dataset, protection, hunted });
+  assert.equal(baseline.huntId, bloated.id);
+  const relative = defenseOf({ dataset, hunt: bloated, protection, reference });
+  const calibrated = defenseOf({ dataset, hunt: bloated, protection, reference, baseline });
+  assert.ok(relative.ratio > calibrated.ratio);
+  close(calibrated.ratio, 1);
+  assert.equal(calibrated.risk, 'ok');
+  assert.equal(calibrated.baseline.name, bloated.name);
+  close(calibrated.takenPerSecond, relative.takenPerSecond);
 });
 
 test('proteção média da party por elemento', () => {

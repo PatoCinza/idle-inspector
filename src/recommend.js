@@ -196,12 +196,25 @@ const riskOf = (ratio) => {
   return 'ok';
 };
 
-export const defenseOf = ({ dataset, hunt, protection, reference }) => {
+export const huntedIds = ({ saved = {}, reference = null, live = null }) => [...new Set([
+  ...Object.entries(saved).filter(([, rates]) => rates?.minutes >= MIN_MINUTES && rates.rooms > 0).map(([id]) => id),
+  ...(reference ? [reference.huntId] : []),
+  ...(live?.huntId && live.minutes >= MIN_MINUTES && live.rooms > 0 ? [live.huntId] : []),
+])];
+
+export const comfortBaseline = ({ dataset, protection, hunted }) => hunted
+  .map((id) => huntById(dataset, id))
+  .filter(Boolean)
+  .map((hunt) => ({ huntId: hunt.id, name: hunt.name, incoming: mitigated(huntPressure(dataset, hunt).byElement, protection) }))
+  .reduce((best, entry) => (entry.incoming > (best?.incoming ?? 0) ? entry : best), null);
+
+export const defenseOf = ({ dataset, hunt, protection, reference, baseline = null }) => {
   const pressure = huntPressure(dataset, hunt);
   const incoming = mitigated(pressure.byElement, protection);
   const refHunt = reference ? huntById(dataset, reference.huntId) : null;
   const refIncoming = refHunt ? mitigated(huntPressure(dataset, refHunt).byElement, protection) : 0;
-  const ratio = refIncoming > 0 ? incoming / refIncoming : null;
+  const base = baseline ?? (refHunt && refIncoming > 0 ? { huntId: refHunt.id, name: refHunt.name, incoming: refIncoming } : null);
+  const ratio = base?.incoming > 0 ? incoming / base.incoming : null;
   const scale = refIncoming > 0 && reference.takenPerSecond > 0 ? reference.takenPerSecond / refIncoming : null;
   const [worst] = Object.entries(pressure.byElement)
     .map(([element, dps]) => ({ element, dps: dps * (1 - (protection[element] ?? 0) / 100), protection: protection[element] ?? 0 }))
@@ -213,6 +226,7 @@ export const defenseOf = ({ dataset, hunt, protection, reference }) => {
     byElement: mitigatedByElement(pressure.byElement, protection),
     takenPerSecond: scale === null ? null : incoming * scale,
     ratio,
+    baseline: base ? { huntId: base.huntId, name: base.name } : null,
     risk: riskOf(ratio),
     worst: worst ? { ...worst, share: incoming > 0 ? worst.dps / incoming : 0 } : null,
     hitter: hitter ? { key: hitter.key, name: dataset.monsters[hitter.key]?.name ?? hitter.key } : null,
@@ -289,6 +303,7 @@ export const recommendHunts = ({ dataset, live = null, huntRates: saved = {}, re
   const xpFactor = measuredFactor ?? partyXpFactor(party);
   const xpSource = measuredFactor ? 'measured' : xpFactor ? 'party' : null;
   const protection = partyProtection(party);
+  const baseline = comfortBaseline({ dataset, protection, hunted: huntedIds({ saved, reference, live }) });
   const assigned = charmSlots ? charmsFromSlots(dataset, charmSlots).assigned : {};
   const rows = dataset.hunts
     .filter((hunt) => (hunt.avail ?? 'on') === 'on')
@@ -300,7 +315,7 @@ export const recommendHunts = ({ dataset, live = null, huntRates: saved = {}, re
         : null;
       const suppliesPerHour = rates ? rates.suppliesPerHour ?? reference?.suppliesPerHour ?? 0 : null;
       const offense = offenseOf({ dataset, hunt, members, mix: reference?.mix ?? null, cast });
-      const defense = defenseOf({ dataset, hunt, protection, reference });
+      const defense = defenseOf({ dataset, hunt, protection, reference, baseline });
       const row = {
         hunt,
         rates,
@@ -324,6 +339,7 @@ export const recommendHunts = ({ dataset, live = null, huntRates: saved = {}, re
     xpSource,
     reference,
     referenceHunt: reference ? huntById(dataset, reference.huntId) : null,
+    baseline,
     partyRead: Boolean(party?.length),
     protectionRead: Boolean(party?.some((member) => member.protection)),
   };
