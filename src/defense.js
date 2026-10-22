@@ -1,4 +1,4 @@
-import { charmValue } from './model.js';
+import { charmValue, charmByKey } from './model.js';
 
 export const DEFENSIVE_MAJORS = new Set(['parry', 'dodge']);
 
@@ -55,7 +55,7 @@ export const measuredDefense = ({ dataset, charmStats, assigned, defense }) => {
   if (!charmStats?.rows?.length || !(charmStats.ms > 0)) return [];
   const hours = charmStats.ms / 3600000;
   return [...DEFENSIVE_MAJORS]
-    .map((key) => ({ key, charm: dataset.charms.find((c) => c.key === key), slot: assigned?.[key] }))
+    .map((key) => ({ key, charm: charmByKey(dataset, key), slot: assigned?.[key] }))
     .filter(({ charm, slot }) => charm && slot?.monster)
     .map(({ key, charm, slot }) => {
       const row = charmStats.rows.find((r) => r.id === charm.id);

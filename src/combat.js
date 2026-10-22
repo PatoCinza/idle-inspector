@@ -1,3 +1,5 @@
+import { perObject } from './memo.js';
+
 export const EMPTY_COMBAT = { members: {}, foes: {}, taken: {}, elements: {} };
 
 export const MIN_CRIT_HITS = 30;
@@ -72,8 +74,10 @@ export const withCombat = (party, combat) => {
   return party.map((member) => ({ ...member, ...measuredOf(combat.members[member.vocation], sharing(member.vocation)) }));
 };
 
+const keysByName = perObject((monsters) => Object.fromEntries(Object.entries(monsters).map(([key, monster]) => [monster.name?.toLowerCase(), key])));
+
 const monsterKeys = (dataset, hunt) => {
-  const keyByName = Object.fromEntries(Object.entries(dataset.monsters).map(([key, monster]) => [monster.name?.toLowerCase(), key]));
+  const keyByName = keysByName(dataset.monsters);
   const inHunt = new Set([...hunt.monsters, hunt.bossKey].filter(Boolean));
   return (name) => {
     const key = keyByName[name.toLowerCase().replace(BOSS_SUFFIX, '')];

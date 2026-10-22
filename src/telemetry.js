@@ -7,12 +7,13 @@ import { defenseOf, defensiveEffect, DEFENSIVE_MAJORS } from './defense.js';
 import { withCombat, dealtPerHour, takenPerHour } from './combat.js';
 import { withAvatar } from './avatar.js';
 import { measuredQuantities } from './drop-log.js';
+import { MAX_PHASES } from './app-state.js';
 
 export { POSTHOG, KEYS, DATA_COLLECTION, batchOf } from './posthog.js';
 
 export const FLUSH_MS = 10 * 60 * 1000;
 export const LEVEL_STEP = 50;
-export const MAX_PHASES = 500;
+export { MAX_PHASES };
 export const MAX_ROTATION_ROOMS = 50;
 export const MAX_ROTATION_SPELLS = 8;
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createBridge, STORAGE_KEY } from '../src/bridge.js';
+import { createBridge, STORAGE_KEY, SAVE_DELAY_MS } from '../src/bridge.js';
 import { TAG } from '../src/capture/protocol.js';
 import { initialApp, reduceApp } from '../src/app-state.js';
 import { windowOf } from '../src/session.js';
@@ -111,4 +111,32 @@ test('combate acumula na janela e zera quando a janela reinicia', async () => {
   assert.deepEqual(bridge.getState().combat.members.knight, { hits: 4, dealt: 100, crits: 2 });
   post({ type: 'reset', reason: 'analyzer', t: 2 * MIN, loot: {} });
   assert.equal(bridge.getState().combat, null);
+});
+
+test('grava só depois do atraso e não regrava o mesmo estado', async () => {
+  const writes = [];
+  const storage = { ...fakeStorage(), set: async (items) => { writes.push(items); } };
+  const tasks = [];
+  const { win, post } = fakeWindow();
+  const bridge = createBridge({ win, storage, now: () => 0, schedule: (task) => tasks.push(task) });
+  await bridge.ready;
+  post(snapshot(0, 10, 0));
+  post(snapshot(MIN, 15, 5));
+  assert.equal(writes.length, 0);
+  assert.equal(tasks.length, 1);
+  await tasks[0]();
+  await bridge.flush();
+  assert.equal(writes.length, 1);
+});
+
+test('o atraso padrão de gravação é de 10 s', () => {
+  assert.equal(SAVE_DELAY_MS, 10000);
+});
+
+test('salas guardadas na sessão ficam limitadas às mais recentes', async () => {
+  const { MAX_PHASES } = await import('../src/app-state.js');
+  const app = Array.from({ length: MAX_PHASES + 100 }, (_, i) => ({ type: 'phase', ms: i + 1, t: i }))
+    .reduce((state, event) => reduceApp(state, event), initialApp());
+  assert.equal(app.phases.length, MAX_PHASES);
+  assert.equal(app.phases.at(-1).ms, MAX_PHASES + 100);
 });

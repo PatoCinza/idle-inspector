@@ -1,6 +1,6 @@
 import { escapeHtml } from './view.js';
 import { MIN_QUANTITY_DROPS } from '../drop-log.js';
-import { formatCount, formatInteger, formatGold, formatPercent, formatDuration, formatDate } from './format.js';
+import { formatCount, formatInteger, formatGold, formatPercent, formatDuration, formatDate, formatNumber } from './format.js';
 
 const meter = (have, goal) => `<span class="meter"><span style="width:${goal ? Math.min(100, (have / goal) * 100) : 0}%"></span></span>`;
 
@@ -136,7 +136,7 @@ const BLOCKED = {
   charms: 'Clique em "Ler party e charms": o plano precisa dos charms que você tem.',
 };
 
-const signed = (fraction) => `+${(fraction * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+const signed = (fraction) => `+${formatNumber(fraction * 100, { maximumFractionDigits: 1 })}%`;
 
 const UNIT_LABEL = { profit: '/h', xp: ' xp/h' };
 

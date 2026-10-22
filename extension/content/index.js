@@ -66,12 +66,12 @@ const dispatchPartyXp = (room) => {
   if (members.length) bridge.dispatch({ type: 'partyXp', members, room });
 };
 
-let seenPhases = null;
+let seenPhase;
 
 const watchRooms = (app) => {
-  const phases = app.phases?.length ?? 0;
-  if (seenPhases !== null && phases > seenPhases) setTimeout(() => dispatchPartyXp(true), ROOM_PAYOUT_MS);
-  seenPhases = phases;
+  const phase = app.phases?.at(-1) ?? null;
+  if (seenPhase !== undefined && phase && phase !== seenPhase) setTimeout(() => dispatchPartyXp(true), ROOM_PAYOUT_MS);
+  seenPhase = phase;
 };
 
 const bridge = createBridge({
@@ -90,6 +90,10 @@ setTimeout(() => dispatchPartyXp(false), FIRST_READ_MS);
 window.addEventListener('pagehide', () => {
   bridge.flush();
   telemetry.flush();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) bridge.flush();
 });
 
 api.runtime.onMessage.addListener((message) => {

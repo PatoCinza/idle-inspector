@@ -1,4 +1,4 @@
-import { charmPlans, creatures, charmValue, bestiaryGoal } from './model.js';
+import { charmPlans, creatures, charmValue, charmByKey, charmById, bestiaryGoal } from './model.js';
 import { DEFENSIVE_MAJORS, defensiveOption } from './defense.js';
 
 const ELEMENTAL = new Set(['wound', 'enflame', 'poison', 'freeze', 'zap', 'curse', 'divine_wrath']);
@@ -102,7 +102,7 @@ export const DEFAULT_CALIBRATION = {
 };
 
 export const damageGain = ({ dataset, charmKey, tier, monsterKey, party, calibration = NO_CALIBRATION }) => {
-  const charm = dataset.charms.find((c) => c.key === charmKey);
+  const charm = charmByKey(dataset, charmKey);
   const monster = { ...dataset.monsters[monsterKey], charmElement: charm?.element };
   const value = charmValue(dataset, charmKey, tier);
   const factor = calibration[familyOf(charmKey)] ?? 1;
@@ -161,7 +161,7 @@ export const measuredCharms = ({ dataset, hunt, killsByMonster, roomsPerHour, de
   if (!charmStats?.rows?.length || !(charmStats.ms > 0)) return [];
   const hours = charmStats.ms / 3600000;
   return charmStats.rows.map((row) => {
-    const charm = dataset.charms.find((c) => c.id === row.id);
+    const charm = charmById(dataset, row.id);
     const slot = charm ? assigned[charm.key] : null;
     const chance = charm && slot ? charmValue(dataset, charm.key, slot.tier ?? 3) : 0;
     const procsPerHour = (row.n ?? 0) / hours;
@@ -276,7 +276,7 @@ export const charmPlan = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPe
 };
 
 export const hasMajorInHunt = ({ dataset, hunt, assigned }) => Object.entries(assigned)
-  .some(([key, slot]) => dataset.charms.find((c) => c.key === key)?.category === 'major' && creatures(hunt).includes(slot?.monster));
+  .some(([key, slot]) => charmByKey(dataset, key)?.category === 'major' && creatures(hunt).includes(slot?.monster));
 
 export const currentDamage = ({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour = null, party, assigned, fallbackHit = null, calibration = DEFAULT_CALIBRATION }) => {
   const weights = creatureWeights({ dataset, hunt, killsByMonster, roomsPerHour, dealtPerHour });

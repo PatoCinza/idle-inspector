@@ -1,12 +1,26 @@
 const LOCALE = 'pt-BR';
 
-const decimal = (value, digits) => value.toLocaleString(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const cachedBy = (create) => {
+  const cache = new Map();
+  return (options) => {
+    const key = JSON.stringify(options);
+    if (!cache.has(key)) cache.set(key, create(options));
+    return cache.get(key);
+  };
+};
+
+const numberFormat = cachedBy((options) => new Intl.NumberFormat(LOCALE, options));
+const dateFormat = cachedBy((options) => new Intl.DateTimeFormat(LOCALE, options));
+
+export const formatNumber = (value, options = {}) => numberFormat(options).format(value);
+
+const decimal = (value, digits) => numberFormat({ minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
 
 const adaptive = (value) => decimal(value, value >= 100 ? 0 : value >= 10 ? 1 : 2);
 
 export const formatCount = (value) => (Number.isFinite(value) ? adaptive(value) : '—');
 
-export const formatInteger = (value) => (Number.isFinite(value) ? Math.round(value).toLocaleString(LOCALE) : '—');
+export const formatInteger = (value) => (Number.isFinite(value) ? numberFormat({}).format(Math.round(value)) : '—');
 
 export const formatGold = (value) => {
   if (!Number.isFinite(value)) return '—';
@@ -15,7 +29,7 @@ export const formatGold = (value) => {
   return decimal(value, 0);
 };
 
-export const formatPercent = (fraction) => `${(fraction * 100).toLocaleString(LOCALE, { maximumSignificantDigits: 3 })}%`;
+export const formatPercent = (fraction) => `${numberFormat({ maximumSignificantDigits: 3 }).format(fraction * 100)}%`;
 
 export const formatDuration = (hours) => {
   if (!Number.isFinite(hours)) return '—';
@@ -32,6 +46,6 @@ export const formatMinutes = (minutes) => {
   return `${Math.floor(whole / 60)} h ${String(whole % 60).padStart(2, '0')} min`;
 };
 
-export const formatClock = (timestamp) => new Date(timestamp).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+export const formatClock = (timestamp) => dateFormat({ hour: '2-digit', minute: '2-digit' }).format(timestamp);
 
-export const formatDate = (timestamp) => new Date(timestamp).toLocaleString(LOCALE, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+export const formatDate = (timestamp) => dateFormat({ day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(timestamp);

@@ -2,17 +2,21 @@ import { TAG, HOOK_EVENTS } from './capture/protocol.js';
 import { reduceApp, restoreApp } from './app-state.js';
 
 export const STORAGE_KEY = 'blp.app';
+export const SAVE_DELAY_MS = 10000;
 
-const defaultSchedule = (task) => setTimeout(task, 1000);
+const defaultSchedule = (task) => setTimeout(task, SAVE_DELAY_MS);
 
 export const createBridge = ({ win, storage, now = Date.now, schedule = defaultSchedule, onChange = () => {}, reduce = reduceApp }) => {
   let app = null;
   let queued = [];
   let saving = false;
+  let saved = null;
 
   const persist = async () => {
     saving = false;
-    if (app) await storage.set({ [STORAGE_KEY]: app }).catch(() => {});
+    if (!app || app === saved) return;
+    const next = app;
+    await storage.set({ [STORAGE_KEY]: next }).then(() => { saved = next; }, () => {});
   };
 
   const requestSave = () => {

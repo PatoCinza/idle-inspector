@@ -3,11 +3,11 @@ import { charmsFromSlots } from './payload.js';
 import { withAvatar } from './avatar.js';
 import { withCombat, dealtPerHour, takenPerHour } from './combat.js';
 import { findHunt, rates, perHour, lootPcts, MIN_MINUTES } from './drops.js';
-import { scavengeGoldPerHour, huntLoot, totals, creatures } from './model.js';
+import { scavengeGoldPerHour, huntLoot, totals, creatures, charmByKey } from './model.js';
 import { BOSS_EXP_MULT } from './run.js';
 import { defenseOf, supplyPerDamage, measuredDefense, recoverySpent, defensiveEffect, DEFENSIVE_MAJORS } from './defense.js';
 
-const charmName = (dataset, key) => dataset.charms.find((charm) => charm.key === key)?.name ?? key;
+const charmName = (dataset, key) => charmByKey(dataset, key)?.name ?? key;
 
 const memberSummary = (party) => {
   const total = party.reduce((acc, member) => acc + (member.dealt ?? 0), 0);

@@ -1,3 +1,5 @@
+import { perObject, perObjectAndKey } from './memo.js';
+
 export const CURRENCY = { 'gold coin': 1, 'platinum coin': 100, 'crystal coin': 10000 };
 export const CHANCE_SCALE = 100000;
 export const DEFAULT_PARTY = [0, 0, 0];
@@ -17,8 +19,16 @@ export const averageQuantity = ({ max }) => (1 + (max ?? 1)) / 2;
 
 export const skippedItems = (lootConfig) => new Set((lootConfig?.skip ?? []).map((entry) => entry.replace(/#\d+$/, '')));
 
+const charmIndex = (field) => perObject((charms) => new Map(charms.map((charm) => [charm[field], charm])));
+const charmsByKey = charmIndex('key');
+const charmsById = charmIndex('id');
+
+export const charmByKey = (dataset, key) => charmsByKey(dataset.charms).get(key);
+
+export const charmById = (dataset, id) => charmsById(dataset.charms).get(id);
+
 export const charmValue = (dataset, key, tier) =>
-  (dataset.charms.find((c) => c.key === key)?.chance[tier - 1] ?? 0) / 100;
+  (charmByKey(dataset, key)?.chance[tier - 1] ?? 0) / 100;
 
 const boostEntry = (cap, equipment, factor) => (entry) => {
   if (equipment.has(entry.name)) return entry;
@@ -29,11 +39,11 @@ const boostEntry = (cap, equipment, factor) => (entry) => {
   return { ...entry, chance, ...(boostedMax > 1 ? { max: boostedMax } : {}) };
 };
 
-export const monsterLoot = (dataset, monsterKey) => {
+export const monsterLoot = perObjectAndKey((dataset, monsterKey) => {
   const loot = dataset.monsters[monsterKey]?.loot ?? [];
   const factor = dataset.lootMultipliers[monsterKey] ?? 1;
   return factor === 1 ? loot : loot.map(boostEntry(dataset.lootCap, new Set(dataset.equipment), factor));
-};
+});
 
 export const partyLootFactor = (lootPcts) => sum(lootPcts.map((pct) => 1 + pct / 100));
 
@@ -43,11 +53,12 @@ export const dropChance = (chance, lootPcts, gut) => factoredChance(chance, part
 
 export const killChance = (entry, factor) => (rollsOncePerKill(entry.name) ? entry.chance / CHANCE_SCALE : factoredChance(entry.chance, factor));
 
-export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY, gut = 0, scavenge = 0, quantities = {}, skipped = new Set() }) =>
-  monsterLoot(dataset, monsterKey).map((entry) => {
+export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY, gut = 0, scavenge = 0, quantities = {}, skipped = new Set() }) => {
+  const factor = partyLootFactor(lootPcts) * (1 + gut);
+  return monsterLoot(dataset, monsterKey).map((entry) => {
     const currency = isCurrency(entry.name);
     const collected = !skipped.has(entry.name);
-    const perKill = collected ? killChance(entry, partyLootFactor(lootPcts) * (1 + gut)) * (quantities[entry.name] ?? averageQuantity(entry)) : 0;
+    const perKill = collected ? killChance(entry, factor) * (quantities[entry.name] ?? averageQuantity(entry)) : 0;
     const value = unitValue(dataset, entry.name) * (currency ? 1 + scavenge : 1);
     return {
       monster: monsterKey,
@@ -60,6 +71,7 @@ export const lootRows = ({ dataset, monsterKey, kills, lootPcts = DEFAULT_PARTY,
       value: perKill * kills * value,
     };
   });
+};
 
 export const creatures = (hunt) => [...new Set([...hunt.monsters, hunt.bossKey].filter(Boolean))];
 

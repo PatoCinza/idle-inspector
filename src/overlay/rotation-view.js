@@ -1,5 +1,5 @@
 import { escapeHtml } from './view.js';
-import { formatCount, formatInteger, formatGold, formatPercent, formatMinutes } from './format.js';
+import { formatCount, formatInteger, formatGold, formatPercent, formatMinutes, formatNumber } from './format.js';
 import { GCD_MS, MIN_CASTS } from '../rotation-table.js';
 
 const PERIOD_LABELS = { mobs: 'Ondas', boss: 'Sala do boss' };
@@ -12,7 +12,7 @@ const signedDamage = (value) => `${value < 0 ? '−' : '+'}${formatGold(Math.abs
 
 const signedPercent = (value) => `${value < 0 ? '−' : '+'}${formatPercent(Math.abs(value))}`;
 
-const formatShare = (fraction) => `${(fraction * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+const formatShare = (fraction) => `${formatNumber(fraction * 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 const plusMinus = (range) => (range ? ` <small class="dim">±${formatGold((range.high - range.low) / 2)}</small>` : '');
 

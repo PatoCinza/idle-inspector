@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Baiak Loot Planner",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Drops, Codex, charms, XP e hunts ao vivo no Baiak Idle. Ferramenta de fã, sem vínculo oficial. Telemetria anônima só se você ligar.",
   "icons": {
     "16": "icons/icon-16.png",

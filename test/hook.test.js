@@ -178,3 +178,38 @@ test('sem a tabela de magias, a captura continua e não quebra nada', () => {
   capture.incoming(roomData('notify', { kind: 'wave', params: { n: 3, total: 10 } }));
   assert.deepEqual(events.filter((event) => event.type === 'error'), []);
 });
+
+const withBrokenPayload = (type) => Uint8Array.from([...roomData(type), 0xc1]);
+
+test('payload de mensagem que não interessa nem é lido', () => {
+  const { capture, events } = setup();
+  capture.incoming(withBrokenPayload('chat'));
+  capture.outgoing(withBrokenPayload('move'));
+  assert.deepEqual(events, []);
+});
+
+test('payload de mensagem que interessa continua sendo lido', () => {
+  const { capture, events } = setup();
+  capture.incoming(withBrokenPayload('charms'));
+  assert.deepEqual(events, [{ type: 'error', t: 1234 }]);
+});
+
+const backpack = (codex) => JSON.stringify({ gear: [], codex });
+
+test('codex e configuração de loot repetidos não são reenviados', () => {
+  const { capture, events } = setup();
+  const lootConfig = JSON.stringify({ skip: ['rope'], noSell: [], codexOnly: false });
+  capture.incoming(patchFrame(15, backpack({ done: ['hunt-troll'] }), lootConfig));
+  capture.incoming(patchFrame(15, backpack({ done: ['hunt-troll'] }), lootConfig));
+  capture.incoming(patchFrame(15, backpack({ done: ['hunt-troll', 'hunt-orc'] })));
+  assert.deepEqual(events.map((event) => event.type), ['lootConfig', 'codex', 'codex']);
+  assert.deepEqual(events.at(-1).codex.done, ['hunt-troll', 'hunt-orc']);
+});
+
+test('snapshot repetido continua sendo emitido para o relógio da janela andar', () => {
+  const { capture, events } = setup();
+  const frame = patchFrame(15, JSON.stringify({ 'h:troll-cave': 3, troll: 40 }), JSON.stringify({ 'gold coin': { n: 9, g: 9 } }));
+  capture.incoming(frame);
+  capture.incoming(frame);
+  assert.deepEqual(events.map((event) => event.type), ['snapshot', 'snapshot']);
+});

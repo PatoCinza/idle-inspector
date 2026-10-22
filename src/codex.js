@@ -1,4 +1,5 @@
 import { codexPlan, codexEntryId, creatures, monsterLoot } from './model.js';
+import { perObject, perObjectPair } from './memo.js';
 
 export const CODEX_SECTIONS = ['hunt', 'boss', 'gear'];
 
@@ -16,13 +17,13 @@ export const codexTable = ({ dataset, hunt, rows = [], codex }) => {
 
 const NO_DROPS = new Set();
 
-export const huntDrops = (dataset, hunt) => (hunt
-  ? new Set(creatures(hunt).flatMap((key) => monsterLoot(dataset, key).map((entry) => entry.name)))
-  : NO_DROPS);
+const dropsOf = perObjectPair((dataset, hunt) => new Set(creatures(hunt).flatMap((key) => monsterLoot(dataset, key).map((entry) => entry.name))));
+
+export const huntDrops = (dataset, hunt) => (hunt ? dropsOf(dataset, hunt) : NO_DROPS);
 
 const droppable = (req, drops) => [req.item, ...(req.anyOf ?? [])].some((name) => drops.has(name));
 
-export const huntChains = (dataset) => dataset.hunts
+export const huntChains = perObject((dataset) => dataset.hunts
   .filter((hunt) => dataset.codexHunts?.[hunt.id]?.length)
   .map((hunt) => ({
     key: hunt.id,
@@ -32,15 +33,15 @@ export const huntChains = (dataset) => dataset.hunts
       label: `Domínio ${step.suffix}`,
       req: dataset.codexHunts[hunt.id].map((req) => ({ item: req.item, qty: req.qty * step.qty })),
     })),
-  }));
+  })));
 
-export const bossChains = (dataset) => (dataset.codexBosses ?? []).map(({ monster, name, steps }) => ({
+export const bossChains = perObject((dataset) => (dataset.codexBosses ?? []).map(({ monster, name, steps }) => ({
   key: monster,
   name,
   steps: steps.map((step, index) => ({ id: step.id, label: `Troféu ${TROPHY_STEPS[index] ?? index + 1}`, req: step.req })),
-}));
+})));
 
-export const gearChains = (dataset) => (dataset.codexGear ?? []).map(({ id, name, pieces }) => ({
+export const gearChains = perObject((dataset) => (dataset.codexGear ?? []).map(({ id, name, pieces }) => ({
   key: id,
   name,
   steps: Array.from({ length: GEAR_CODEX_STEPS }, (_, tier) => ({
@@ -48,7 +49,7 @@ export const gearChains = (dataset) => (dataset.codexGear ?? []).map(({ id, name
     label: dataset.rarities?.[tier] ?? `#${tier}`,
     req: pieces.map((item) => ({ item, qty: 1, tier })),
   })),
-}));
+})));
 
 const stepProgress = (step, prog, done, drops) => {
   const complete = done.has(step.id);

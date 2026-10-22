@@ -1,4 +1,5 @@
 import { parseFrame, parseMessage } from './frames.js';
+import { recentJson } from './patches.js';
 import { procsFromStats } from '../avatar.js';
 import { combatFromLog, mergeCombat, hasCombat } from '../combat.js';
 import { createAttribution, initialAttribution, inputsFromMessage, addRecords, mergeRotation, hasRotation, EMPTY_ROTATION, ROTATION_MESSAGES } from '../rotation.js';
@@ -59,12 +60,29 @@ const OUTGOING = {
 
 const eventsFromFrame = (frame) => (frame.kind === 'patch' ? fromPatch(frame) : INCOMING[frame.type]?.(frame.payload) ?? []);
 
+const wantsIncoming = (type) => Object.hasOwn(INCOMING, type) || ROTATION_MESSAGES.has(type);
+
+const wantsOutgoing = (type) => Object.hasOwn(OUTGOING, type);
+
 export const createCapture = ({ emit, now = Date.now, spells = [] }) => {
   const lastEmit = {};
   const pending = {};
   const attribute = createAttribution(spells);
   let attribution = initialAttribution();
   let unsent = EMPTY_ROTATION;
+  let emitted = { codex: null, lootConfig: null };
+  const parse = recentJson();
+
+  const withoutRepeats = (frame) => {
+    if (frame.kind !== 'patch') return frame;
+    const fresh = {
+      ...frame,
+      codex: frame.codex === emitted.codex ? null : frame.codex,
+      lootConfig: frame.lootConfig === emitted.lootConfig ? null : frame.lootConfig,
+    };
+    emitted = { codex: frame.codex ?? emitted.codex, lootConfig: frame.lootConfig ?? emitted.lootConfig };
+    return fresh;
+  };
 
   const rotationEvents = (frame, t) => {
     if (frame.kind !== 'message' || !ROTATION_MESSAGES.has(frame.type)) return [];
@@ -103,13 +121,14 @@ export const createCapture = ({ emit, now = Date.now, spells = [] }) => {
   };
 
   const incoming = safely((bytes, t) => {
-    const frame = parseFrame(bytes);
+    const parsed = parseFrame(bytes, { wants: wantsIncoming, parse });
+    const frame = parsed && withoutRepeats(parsed);
     return frame ? [...eventsFromFrame(frame), ...rotationEvents(frame, t)] : [];
   });
 
   const outgoing = safely((bytes) => {
     if (bytes[0] !== ROOM_DATA) return [];
-    const { type, payload } = parseMessage(bytes);
+    const { type, payload } = parseMessage(bytes, wantsOutgoing);
     return OUTGOING[type]?.(payload) ?? [];
   });
 

@@ -1,3 +1,5 @@
+import { perObject } from './memo.js';
+
 export const WAVE_SIZES = [4, 4, 5, 5, 6, 6, 7, 7, 8];
 export const ATTACK_INTERVAL_MS = 2000;
 export const BOSS_EXP_MULT = 5;
@@ -10,7 +12,7 @@ const addTo = (acc, [element, dps]) => ({ ...acc, [element]: (acc[element] ?? 0)
 
 const abilityDps = ({ min, max, chance, interval }) => average([min, max]) * (chance / 100) * perSecond(interval);
 
-export const monsterDamage = (monster) => {
+const damageOf = (monster) => {
   const melee = average(monster?.dmg ?? [0, 0]) * perSecond();
   const abilities = (monster?.abilities ?? []).filter((a) => a.element !== 'healing');
   const byElement = abilities
@@ -18,6 +20,10 @@ export const monsterDamage = (monster) => {
     .reduce(addTo, melee > 0 ? { physical: melee } : {});
   return { dps: sum(Object.values(byElement)), byElement };
 };
+
+const cachedDamage = perObject(damageOf);
+
+export const monsterDamage = (monster) => (monster ? cachedDamage(monster) : damageOf(monster));
 
 export const spawnShares = (hunt) => {
   const weights = hunt.weights?.length === hunt.monsters.length ? hunt.weights : hunt.monsters.map(() => 1);

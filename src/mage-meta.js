@@ -1,4 +1,5 @@
 import { spellAverage } from './spells.js';
+import { perObject } from './memo.js';
 
 export const META_RUNES = ['Avalanche', 'Thunderstorm', 'Stone Shower', 'Great Fireball'];
 
@@ -32,7 +33,9 @@ export const spellPower = ({ spell, member, resist }) => {
     * (1 - effectiveResist(resist?.[spell.element] ?? 0, bonus.pierce) / 100);
 };
 
-const byName = (spells) => Object.fromEntries(spells.map((spell) => [spell.name, spell]));
+const NO_SPELLS = [];
+
+const byName = perObject((spells) => Object.fromEntries(spells.map((spell) => [spell.name, spell])));
 
 const usable = (member, cast) => (spell) => spell
   && spell.vocs.includes(member.vocation)
@@ -55,7 +58,7 @@ const runeCandidates = (names, member, cast) => META_RUNES
 export const metaRotation = ({ dataset, member, resist, cast = new Set() }) => {
   const meta = MAGE_META[member.vocation];
   if (!meta) return null;
-  const names = byName(dataset.spells ?? []);
+  const names = byName(dataset.spells ?? NO_SPELLS);
   const pick = (list) => list.map((name) => names[name]).filter(usable(member, cast));
   const forks = ranked(pick(meta.forks), member, resist);
   const runes = ranked(runeCandidates(names, member, cast), member, resist);

@@ -19,6 +19,8 @@ import { xpAnalysis } from '../../src/xp-tracker.js';
 import { renderXp } from '../../src/overlay/xp-view.js';
 import { idiotCheck } from '../../src/check.js';
 import { renderCheck } from '../../src/overlay/check-view.js';
+import { renderedState, waitBeforeRender } from '../../src/overlay/refresh.js';
+import { lastBy } from '../../src/memo.js';
 
 const RENDER_DELAY_MS = 500;
 const VISIBLE_GRIP_PX = 80;
@@ -62,12 +64,26 @@ const CONSENT_PROMPT = `<span>Quer ajudar a calibrar o modelo de loot e de charm
   <button class="ghost" data-action="consent-off">Agora não</button>
   <button class="ghost" data-action="consent-keep">Ligar</button>`;
 
+const changedOnly = (write) => (target) => {
+  let last = null;
+  return (html) => {
+    if (html === last) return;
+    last = html;
+    write(target, html);
+  };
+};
+
+const quantitiesOf = lastBy((dropLog) => [dropLog], measuredQuantities);
+const skippedOf = lastBy((lootConfig) => [lootConfig], skippedItems);
+
 export const mountOverlay = ({ doc, dataset, iconUrl, logoUrl = null, ui: stored, saveUi, actions = {}, consentPrompt = false }) => {
   let ui = { ...defaultUi(), ...stored };
   let app = null;
   let timer = null;
   let notice = null;
   let busy = false;
+  let rendered = null;
+  let stale = false;
 
   const host = doc.createElement('div');
   const shadow = host.attachShadow({ mode: 'closed' });
@@ -109,16 +125,19 @@ export const mountOverlay = ({ doc, dataset, iconUrl, logoUrl = null, ui: stored
 
   const tabsNav = shadow.querySelector('.tabs');
 
+  const writeTabs = changedOnly(patchHtml)(tabsNav);
+
   const renderTabs = () => {
-    patchHtml(tabsNav, TABS.map(({ id, label }) => `<button class="tab${id === ui.tab ? ' active' : ''}" data-tab="${id}">${label}</button>`).join(''));
+    writeTabs(TABS.map(({ id, label }) => `<button class="tab${id === ui.tab ? ' active' : ''}" data-tab="${id}">${label}</button>`).join(''));
   };
 
   const planner = shadow.querySelector('.planner');
-  let plannerHtml = null;
+  const writePlanner = changedOnly(setHtml)(planner);
+  const writeBody = changedOnly(patchHtml)(body);
 
   const party = () => app.party?.members ?? null;
-  const quantities = () => measuredQuantities(app.dropLog);
-  const skipped = () => skippedItems(app.lootConfig);
+  const quantities = () => quantitiesOf(app.dropLog);
+  const skipped = () => skippedOf(app.lootConfig);
 
   const dropsOf = (plan) => (plan.mode === 'saved' || plan.mode === 'perKill'
     ? plannedDropsTable({ dataset, hunt: plan.hunt, saved: plan.mode === 'saved' ? plan.saved : null, party: party(), charmSlots: app.charmSlots, quantities: quantities(), skipped: skipped() })
@@ -214,26 +233,50 @@ export const mountOverlay = ({ doc, dataset, iconUrl, logoUrl = null, ui: stored
 
   const renderPlanner = (plan) => {
     const liveHunt = dataset.hunts.find((hunt) => hunt.id === plan.live.huntId) ?? null;
-    const html = PLANNER_TABS.has(ui.tab) ? renderHuntPicker({ hunts: dataset.hunts, selected: ui.plannedHunt, liveHunt }) : '';
-    if (html === plannerHtml) return;
-    plannerHtml = html;
-    setHtml(planner, html);
+    writePlanner(PLANNER_TABS.has(ui.tab) ? renderHuntPicker({ hunts: dataset.hunts, selected: ui.plannedHunt, liveHunt }) : '');
   };
+
+  const isVisible = () => !ui.collapsed && !doc.hidden;
 
   const render = () => {
     if (!app) return;
+    if (!isVisible()) {
+      stale = true;
+      return;
+    }
+    stale = false;
     const plan = planFor({ dataset, app, plannedHunt: ui.plannedHunt });
     renderTabs();
     renderPlanner(plan);
     panel.classList.toggle('fill', (ui.tab === 'codex' && ui.codexSection === 'hunt' && Boolean(plan.hunt)) || ui.tab === 'charms' || ui.tab === 'rotation' || ui.tab === 'hunts' || ui.tab === 'check');
-    patchHtml(body, (views[ui.tab] ?? views.drops)(plan));
+    writeBody((views[ui.tab] ?? views.drops)(plan));
+    rendered = renderedState({ tab: ui.tab, app, now: Date.now() });
+    clearTimeout(timer);
+    timer = null;
+  };
+
+  const refresh = () => {
+    timer = null;
+    if (!app) return;
+    if (!isVisible()) {
+      stale = true;
+      return;
+    }
+    const wait = waitBeforeRender({ tab: ui.tab, app, last: rendered, now: Date.now() });
+    if (wait === null) return;
+    if (wait > 0) {
+      timer = setTimeout(refresh, wait);
+      return;
+    }
+    render();
   };
 
   const scheduleRender = () => {
-    timer ??= setTimeout(() => {
-      timer = null;
-      render();
-    }, RENDER_DELAY_MS);
+    timer ??= setTimeout(refresh, RENDER_DELAY_MS);
+  };
+
+  const renderIfStale = () => {
+    if (stale) render();
   };
 
   const readButton = shadow.querySelector('[data-action="read-party"]');
@@ -253,7 +296,10 @@ export const mountOverlay = ({ doc, dataset, iconUrl, logoUrl = null, ui: stored
   };
 
   const ownActions = {
-    toggle: () => updateUi({ collapsed: !ui.collapsed }),
+    toggle: () => {
+      updateUi({ collapsed: !ui.collapsed });
+      renderIfStale();
+    },
     'read-party': () => {
       track({ type: 'readParty' });
       return readParty();
@@ -347,12 +393,16 @@ export const mountOverlay = ({ doc, dataset, iconUrl, logoUrl = null, ui: stored
 
   shadow.querySelector('[data-drag]').addEventListener('pointerdown', startDrag);
   view.addEventListener('resize', applyUi);
+  doc.addEventListener('visibilitychange', renderIfStale);
 
   applyUi();
   doc.documentElement.append(host);
 
   return {
-    reveal: () => updateUi({ x: null, y: null, collapsed: false }),
+    reveal: () => {
+      updateUi({ x: null, y: null, collapsed: false });
+      renderIfStale();
+    },
     update: (next) => {
       app = next;
       scheduleRender();

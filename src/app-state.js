@@ -9,6 +9,7 @@ import { referenceOf } from './recommend.js';
 import { initialXpTrack, reduceXpTrack } from './xp-tracker.js';
 
 export const APP_VERSION = 1;
+export const MAX_PHASES = 500;
 
 export const initialApp = () => ({ v: APP_VERSION, session: initialSession(), charmSlots: null, party: null, codex: null, charmStats: null, procs: null, combat: null, rotation: null, huntRates: {}, bestiary: null, dropLog: initialDropLog(), xp: 0, phases: [], lootConfig: null, reference: null, xpTrack: initialXpTrack() });
 
@@ -65,7 +66,7 @@ export const reduceApp = (app, event, env = {}) => {
   if (event.type === 'rotation') return { ...app, rotation: mergeRotation(app.rotation, event.stats) };
   if (event.type === 'xp') return { ...app, xp: (app.xp ?? 0) + event.xp };
   if (event.type === 'lootConfig') return { ...app, lootConfig: event.config };
-  if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), { ms: event.ms, charms: app.charmSlots ? charmPlacement(app.charmSlots) : null }] };
+  if (event.type === 'phase') return { ...app, phases: [...(app.phases ?? []), { ms: event.ms, charms: app.charmSlots ? charmPlacement(app.charmSlots) : null }].slice(-MAX_PHASES) };
   if (event.type === 'charms') return { ...app, charmSlots: event.slots };
   if (event.type === 'codex') {
     const codex = trackedCodex(event.codex);

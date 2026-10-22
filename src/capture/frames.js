@@ -4,7 +4,9 @@ import { printableRuns, jsonIn, isBestiary, isTracker, isLootTracker, isBackpack
 const STATE_FRAMES = new Set([14, 15]);
 const ROOM_DATA = 13;
 
-export const parsePatch = (bytes) => printableRuns(bytes).map(jsonIn).reduce((found, obj) => ({
+const everything = () => true;
+
+export const parsePatch = (bytes, parse = jsonIn) => printableRuns(bytes).map(parse).reduce((found, obj) => ({
   bestiary: found.bestiary ?? (isBestiary(obj) ? obj : null),
   loot: found.loot ?? (!isBestiary(obj) && isLootTracker(obj) ? obj : null),
   supply: found.supply ?? (!isBestiary(obj) && isTracker(obj) && !isLootTracker(obj) ? obj : null),
@@ -12,14 +14,14 @@ export const parsePatch = (bytes) => printableRuns(bytes).map(jsonIn).reduce((fo
   lootConfig: isLootConfig(obj) ? obj : found.lootConfig,
 }), { bestiary: null, loot: null, supply: null, codex: null, lootConfig: null });
 
-export const parseMessage = (bytes) => {
+export const parseMessage = (bytes, wants = everything) => {
   const type = readMsgpack(bytes, 1);
-  const hasPayload = type.end < bytes.length;
+  const hasPayload = type.end < bytes.length && wants(type.value);
   return { type: type.value, payload: hasPayload ? readMsgpack(bytes, type.end).value : undefined };
 };
 
-export const parseFrame = (bytes) => {
-  if (STATE_FRAMES.has(bytes[0])) return { kind: 'patch', ...parsePatch(bytes) };
-  if (bytes[0] === ROOM_DATA) return { kind: 'message', ...parseMessage(bytes) };
+export const parseFrame = (bytes, { wants = everything, parse = jsonIn } = {}) => {
+  if (STATE_FRAMES.has(bytes[0])) return { kind: 'patch', ...parsePatch(bytes, parse) };
+  if (bytes[0] === ROOM_DATA) return { kind: 'message', ...parseMessage(bytes, wants) };
   return null;
 };

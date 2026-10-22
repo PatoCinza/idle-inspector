@@ -28,3 +28,14 @@ export const isLootTracker = (obj) => isTracker(obj) && Object.keys(obj).some((k
 export const isLootConfig = (obj) => obj && typeof obj === 'object' && Array.isArray(obj.skip) && 'noSell' in obj;
 
 export const isBackpack = (obj) => obj && typeof obj === 'object' && Array.isArray(obj.gear) && obj.codex;
+
+export const recentJson = (size = 16) => {
+  const recent = new Map();
+  return (text) => {
+    if (recent.has(text)) return recent.get(text);
+    const parsed = jsonIn(text);
+    recent.set(text, parsed);
+    if (recent.size > size) recent.delete(recent.keys().next().value);
+    return parsed;
+  };
+};

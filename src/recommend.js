@@ -5,6 +5,7 @@ import { isEmptyCombat } from './combat.js';
 import { charmsFromSlots } from './payload.js';
 import { spellAverage } from './spells.js';
 import { metaRotation, metaSpells, isMage } from './mage-meta.js';
+import { perObjectPair } from './memo.js';
 
 export const ELEMENTS = ['physical', 'energy', 'earth', 'fire', 'ice', 'holy', 'death'];
 export const PARTY_XP_SHARES = { 1: [1], 2: [4 / 7, 3 / 7], 3: [0.4, 0.3, 0.3] };
@@ -27,14 +28,14 @@ export const resistFactor = (monster, mix) => {
   return entries.length ? sum(entries.map(([element, share]) => share * (1 - clampPct(monster?.resist?.[element]) / 100))) : 1;
 };
 
-export const roomOf = (dataset, hunt) => {
+export const roomOf = perObjectPair((dataset, hunt) => {
   const mobs = sum(WAVE_SIZES);
   const hpMult = dataset.bossWave?.hpMult ?? 1;
   return [
     ...spawnShares(hunt).map(([key, share]) => ({ key, kills: mobs * share, hp: dataset.monsters[key]?.hp ?? 0, boss: false })),
     ...(hunt.bossKey ? [{ key: hunt.bossKey, kills: 1, hp: (dataset.monsters[hunt.bossKey]?.hp ?? 0) * hpMult, boss: true }] : []),
   ];
-};
+});
 
 export const roomHp = (dataset, hunt) => sum(roomOf(dataset, hunt).map((c) => c.kills * c.hp));
 
@@ -100,12 +101,12 @@ export const huntRates = ({ dataset, hunt, live, saved, reference }) => {
   return null;
 };
 
-export const weightedResist = (dataset, hunt) => {
+export const weightedResist = perObjectPair((dataset, hunt) => {
   const room = roomOf(dataset, hunt);
   const total = sum(room.map((c) => c.kills * c.hp)) || 1;
   return Object.fromEntries(ELEMENTS.map((element) => [element,
     sum(room.map((c) => ((c.kills * c.hp) / total) * clampPct(dataset.monsters[c.key]?.resist?.[element])))]));
-};
+});
 
 export const castWords = (rotation) => Object.fromEntries(Object.entries(rotation?.members ?? {})
   .map(([vocation, periods]) => [vocation, new Set(Object.values(periods).flatMap((period) => Object.keys(period?.spells ?? {})))]));
@@ -173,7 +174,7 @@ export const offenseOf = ({ dataset, hunt, members, mix, cast = {} }) => {
 export const partyProtection = (party) => Object.fromEntries(ELEMENTS.map((element) => [element,
   party?.length ? sum(party.map((member) => clampPct(member.protection?.[element]))) / party.length : 0]));
 
-const huntPressure = (dataset, hunt) => {
+const huntPressure = perObjectPair((dataset, hunt) => {
   const room = roomOf(dataset, hunt).filter((c) => !c.boss);
   const kills = sum(room.map((c) => c.kills)) || 1;
   const alive = hunt.maxAlive ?? 1;
@@ -182,7 +183,7 @@ const huntPressure = (dataset, hunt) => {
     .reduce((acc, [element, dps]) => ({ ...acc, [element]: (acc[element] ?? 0) + dps }), {});
   const creaturesDps = room.map((c) => ({ key: c.key, dps: (monsterDamage(dataset.monsters[c.key]).dps * c.kills * alive) / kills }));
   return { byElement, creaturesDps };
-};
+});
 
 const mitigatedByElement = (byElement, protection) => Object.fromEntries(Object.entries(byElement)
   .map(([element, dps]) => [element, dps * (1 - (protection[element] ?? 0) / 100)]));
